@@ -1,0 +1,61 @@
+# BOD Core Aggregator | IC Housing: BOD-Core
+# Polls all subsystem monitors, computes master alert,
+# drives BOD-Stor and BOD-Alert displays.
+define StorWarn 25
+define StorCrit 10
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+alias vAtmoAlert r0
+alias vPwrAlert r1
+alias vStorAvg r2
+alias vStorMin r3
+alias vStorAlert r4
+alias vMaster r5
+alias vScratch r6
+alias vColor r7
+main:
+yield
+jal PollMonitors
+jal EvalMaster
+j main
+PollMonitors:
+# Read alert levels from subsystem monitors
+lbn vAtmoAlert HASH("StructureCircuitHousing") HASH("BOD-AtmoMon") Setting Average
+lbn vPwrAlert HASH("StructureCircuitHousing") HASH("BOD-PwrMon") Setting Average
+# Read storage monitors: average for display, minimum for alert
+lbn vStorAvg HASH("StructureCircuitHousing") HASH("BOD-StorMon") Setting Average
+lbn vStorMin HASH("StructureCircuitHousing") HASH("BOD-StorMon") Setting Minimum
+# Write storage overview (convert 0-100 to 0-1 for percent display)
+div vScratch vStorAvg 100
+sbn HASH("StructureConsoleLED5") HASH("BOD-Stor") Setting vScratch
+j ra
+EvalMaster:
+# Storage alert from minimum fill %
+move vStorAlert 0
+slt vScratch vStorMin StorWarn
+select vStorAlert vScratch 1 vStorAlert
+slt vScratch vStorMin StorCrit
+select vStorAlert vScratch 2 vStorAlert
+# Storage display color
+move vColor ColorGreen
+sgt vScratch vStorAlert 0
+select vColor vScratch ColorOrange vColor
+sgt vScratch vStorAlert 1
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-Stor") Color vColor
+# Master alert = worst of all
+max vMaster vAtmoAlert vPwrAlert
+max vMaster vMaster vStorAlert
+# Master alert display
+sbn HASH("StructureConsoleLED5") HASH("BOD-Alert") Setting vMaster
+# Master alert color
+move vColor ColorGreen
+sgt vScratch vMaster 0
+select vColor vScratch ColorOrange vColor
+sgt vScratch vMaster 1
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-Alert") Color vColor
+# Export master alert for other scripts (network alert bus)
+s db Setting vMaster
+j ra

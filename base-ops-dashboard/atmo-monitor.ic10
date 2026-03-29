@@ -1,0 +1,83 @@
+# Atmosphere Monitor | IC Housing: BOD-AtmoMon
+# Reads BOD-Atmo sensors, drives displays, writes alert to db
+define TempWarnLo 18
+define TempWarnHi 26
+define TempCritLo 10
+define TempCritHi 35
+define PressWarnLo 90
+define PressWarnHi 120
+define PressCritLo 60
+define PressCritHi 150
+define O2WarnLo 0.18
+define O2WarnHi 0.24
+define O2CritLo 0.14
+define O2CritHi 0.30
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+alias vTemp r0
+alias vPress r1
+alias vO2 r2
+alias vAlert r3
+alias vScratch r4
+alias vColor r5
+main:
+yield
+jal ReadSensors
+jal SetColors
+j main
+ReadSensors:
+lbn vTemp HASH("StructureGasSensor") HASH("BOD-Atmo") Temperature Average
+sub vTemp vTemp 273.15
+sbn HASH("StructureConsoleLED5") HASH("BOD-Temp") Setting vTemp
+lbn vPress HASH("StructureGasSensor") HASH("BOD-Atmo") Pressure Average
+div vPress vPress 1000
+sbn HASH("StructureConsoleLED5") HASH("BOD-Press") Setting vPress
+lbn vO2 HASH("StructureGasSensor") HASH("BOD-Atmo") RatioOxygen Average
+sbn HASH("StructureConsoleLED5") HASH("BOD-O2") Setting vO2
+sbn HASH("StructureDiodeSlide") HASH("BOD-Bar-O2") Setting vO2
+j ra
+SetColors:
+move vAlert 0
+# Temp color (10 lines) then derive alert from color
+move vColor ColorGreen
+slt vScratch vTemp TempWarnLo
+select vColor vScratch ColorOrange vColor
+sgt vScratch vTemp TempWarnHi
+select vColor vScratch ColorOrange vColor
+slt vScratch vTemp TempCritLo
+select vColor vScratch ColorRed vColor
+sgt vScratch vTemp TempCritHi
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-Temp") Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+# Pressure color
+move vColor ColorGreen
+slt vScratch vPress PressWarnLo
+select vColor vScratch ColorOrange vColor
+sgt vScratch vPress PressWarnHi
+select vColor vScratch ColorOrange vColor
+slt vScratch vPress PressCritLo
+select vColor vScratch ColorRed vColor
+sgt vScratch vPress PressCritHi
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-Press") Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+# O2 color
+move vColor ColorGreen
+slt vScratch vO2 O2WarnLo
+select vColor vScratch ColorOrange vColor
+sgt vScratch vO2 O2WarnHi
+select vColor vScratch ColorOrange vColor
+slt vScratch vO2 O2CritLo
+select vColor vScratch ColorRed vColor
+sgt vScratch vO2 O2CritHi
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-O2") Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+# Write master alert to IC Housing
+s db Setting vAlert
+j ra

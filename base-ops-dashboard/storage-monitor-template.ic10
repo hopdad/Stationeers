@@ -1,0 +1,26 @@
+# Storage Monitor Template | IC Housing: BOD-StorMon
+# Clone per storage area. Change the two HASH lines below.
+# IC Housing MUST be labeled "BOD-StorMon"
+#
+# Slot-based (Vending Machine, Fridge):
+#   Change DeviceType to HASH("StructureVendingMachine") etc.
+# Bulk (Silo, Canister):
+#   Change DeviceType to HASH("StructureSilo") etc.
+alias vCount r0
+alias vMax r1
+alias vFill r2
+main:
+yield
+# --- EDIT THESE TWO LINES PER AREA ---
+lbn vCount HASH("StructureVendingMachine") HASH("MyStorage") Quantity Sum
+lbn vMax HASH("StructureVendingMachine") HASH("MyStorage") Maximum Sum
+# --- END EDIT ---
+beqz vMax skipDiv
+div vFill vCount vMax
+mul vFill vFill 100
+j write
+skipDiv:
+move vFill 0
+write:
+s db Setting vFill
+j main

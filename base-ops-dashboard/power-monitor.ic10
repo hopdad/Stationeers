@@ -1,0 +1,56 @@
+# Power Monitor | IC Housing: BOD-PwrMon
+# Reads batteries + solar/turbines, drives displays, writes alert to db
+define BattWarn 0.50
+define BattCrit 0.20
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+alias vCharge r0
+alias vMaxChg r1
+alias vPwr r2
+alias vGen r3
+alias vAlert r4
+alias vScratch r5
+alias vColor r6
+main:
+yield
+jal ReadPower
+jal SetColors
+j main
+ReadPower:
+# Battery charge: sum small + large
+lb vCharge HASH("StructureBatterySmall") Charge Sum
+lb vScratch HASH("StructureBatteryLarge") Charge Sum
+add vCharge vCharge vScratch
+# Battery max capacity: sum small + large
+lb vMaxChg HASH("StructureBatterySmall") Maximum Sum
+lb vScratch HASH("StructureBatteryLarge") Maximum Sum
+add vMaxChg vMaxChg vScratch
+# Compute ratio (guard div-by-zero)
+move vPwr 0
+beqz vMaxChg skipDiv
+div vPwr vCharge vMaxChg
+skipDiv:
+sbn HASH("StructureConsoleLED5") HASH("BOD-Pwr") Setting vPwr
+sbn HASH("StructureDiodeSlide") HASH("BOD-Bar-Pwr") Setting vPwr
+# Power generation: solar + turbines
+lb vGen HASH("StructureSolarPanel") Current Sum
+lb vScratch HASH("StructureWindTurbine") Current Sum
+add vGen vGen vScratch
+sbn HASH("StructureConsoleLED5") HASH("BOD-Gen") Setting vGen
+j ra
+SetColors:
+# Battery color (lower-only thresholds)
+move vColor ColorGreen
+slt vScratch vPwr BattWarn
+select vColor vScratch ColorOrange vColor
+slt vScratch vPwr BattCrit
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-Pwr") Color vColor
+# Derive alert from color
+sub vAlert vColor ColorGreen
+# Gen display: no alert, just white/green
+sbn HASH("StructureConsoleLED5") HASH("BOD-Gen") Color ColorGreen
+# Write alert to IC Housing
+s db Setting vAlert
+j ra
