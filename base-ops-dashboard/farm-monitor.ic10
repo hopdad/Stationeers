@@ -1,0 +1,76 @@
+# Farm Monitor | IC Housing: BOD-FarmMon
+# Reads hydroponics trays named "BOD-Farm", drives displays, writes alert to db
+# Tracks: harvest readiness (avg growth), tray occupancy, water pressure
+define GrowthWarn 0.10
+define GrowthCrit 0.00
+define WaterWarnLo 50
+define WaterCritLo 20
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+alias vGrowth r0
+alias vOccupied r1
+alias vTotal r2
+alias vOccPct r3
+alias vWater r4
+alias vAlert r5
+alias vScratch r6
+alias vColor r7
+main:
+yield
+jal ReadFarm
+jal SetColors
+j main
+ReadFarm:
+# Average growth across all trays (0-1, 1 = ready to harvest)
+lbn vGrowth HASH("StructureHydroponics") HASH("BOD-Farm") Growth Average
+sbn HASH("StructureConsoleLED5") HASH("BOD-Grow") Setting vGrowth
+# Tray occupancy: count trays with a plant (Occupied > 0)
+# Sum of Occupied gives count of trays that have something growing
+lbn vOccupied HASH("StructureHydroponics") HASH("BOD-Farm") Occupied Sum
+# Total trays: use Quantity with Maximum batch mode to get count
+# Actually, sum On to count powered trays
+lbn vTotal HASH("StructureHydroponics") HASH("BOD-Farm") On Sum
+# Compute occupancy ratio
+move vOccPct 0
+beqz vTotal skipOcc
+div vOccPct vOccupied vTotal
+skipOcc:
+sbn HASH("StructureConsoleLED5") HASH("BOD-Occ") Setting vOccPct
+# Water pressure from pipe sensor named "BOD-Water"
+lbn vWater HASH("StructureGasSensor") HASH("BOD-Water") Pressure Average
+div vWater vWater 1000
+sbn HASH("StructureConsoleLED5") HASH("BOD-H2O") Setting vWater
+j ra
+SetColors:
+move vAlert 0
+# Growth color: low growth = warn (trays stalled or dead)
+move vColor ColorGreen
+slt vScratch vOccPct GrowthWarn
+select vColor vScratch ColorOrange vColor
+slt vScratch vOccPct GrowthCrit
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-Grow") Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+# Occupancy color: low occupancy = trays empty
+move vColor ColorGreen
+slt vScratch vOccPct 0.50
+select vColor vScratch ColorOrange vColor
+slt vScratch vOccPct 0.25
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-Occ") Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+# Water pressure color
+move vColor ColorGreen
+slt vScratch vWater WaterWarnLo
+select vColor vScratch ColorOrange vColor
+slt vScratch vWater WaterCritLo
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-H2O") Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+# Write alert to IC Housing
+s db Setting vAlert
+j ra

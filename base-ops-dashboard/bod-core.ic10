@@ -15,6 +15,9 @@ alias vMaster r5
 alias vScratch r6
 alias vColor r7
 alias vStorCount r8
+alias vFarmAlert r9
+alias vLockAlert r10
+alias vFurnAlert r11
 main:
 yield
 jal PollMonitors
@@ -24,6 +27,9 @@ PollMonitors:
 # Read alert levels from subsystem monitors
 lbn vAtmoAlert HASH("StructureCircuitHousing") HASH("BOD-AtmoMon") Setting Average
 lbn vPwrAlert HASH("StructureCircuitHousing") HASH("BOD-PwrMon") Setting Average
+lbn vFarmAlert HASH("StructureCircuitHousing") HASH("BOD-FarmMon") Setting Average
+lbn vLockAlert HASH("StructureCircuitHousing") HASH("BOD-LockMon") Setting Average
+lbn vFurnAlert HASH("StructureCircuitHousing") HASH("BOD-FurnMon") Setting Average
 # Count active storage monitors (On=1 per powered housing)
 lbn vStorCount HASH("StructureCircuitHousing") HASH("BOD-StorMon") On Sum
 # Read storage monitors: average for display, minimum for alert
@@ -52,6 +58,9 @@ sbn HASH("StructureConsoleLED5") HASH("BOD-Stor") Color vColor
 # Master alert = worst of all
 max vMaster vAtmoAlert vPwrAlert
 max vMaster vMaster vStorAlert
+max vMaster vMaster vFarmAlert
+max vMaster vMaster vLockAlert
+max vMaster vMaster vFurnAlert
 # Master alert display
 sbn HASH("StructureConsoleLED5") HASH("BOD-Alert") Setting vMaster
 # Master alert color

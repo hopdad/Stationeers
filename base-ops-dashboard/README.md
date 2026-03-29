@@ -5,9 +5,12 @@ A micro-architecture monitoring system for Stationeers. Multiple IC10 scripts ea
 ## Architecture
 
 ```
-Atmo Monitor ──┐
-Power Monitor ─┼──> BOD Core ──> Master Alert Display
-StorMon #1..N ─┘
+Atmo Monitor ────┐
+Power Monitor ───┤
+StorMon #1..N ───┤
+Farm Monitor ────┼──> BOD Core ──> Master Alert Display
+Airlock Monitor ─┤
+Furnace Monitor ─┘
 ```
 
 Each monitor reads its sensors, drives its own displays with color-coded thresholds, and writes an alert level (0=OK, 1=WARN, 2=CRIT) to its IC Housing's `db.Setting`. BOD Core polls all monitors and rolls up the worst-case into a master alert.
@@ -19,7 +22,10 @@ Each monitor reads its sensors, drives its own displays with color-coded thresho
 | `atmo-monitor.ic10` | BOD-AtmoMon | 83 | Atmosphere: temp, pressure, O2 |
 | `power-monitor.ic10` | BOD-PwrMon | 56 | Power: battery charge, generation |
 | `storage-monitor-template.ic10` | BOD-StorMon | 26 | Storage: clone per area, fill % |
-| `bod-core.ic10` | BOD-Core | 61 | Aggregator: master alert + storage overview |
+| `farm-monitor.ic10` | BOD-FarmMon | 72 | Farming: growth, occupancy, water pressure |
+| `airlock-monitor.ic10` | BOD-LockMon | 63 | Airlocks: pressure, door states |
+| `furnace-monitor.ic10` | BOD-FurnMon | 55 | Furnaces: temp, pressure (Arc + Advanced) |
+| `bod-core.ic10` | BOD-Core | 75 | Aggregator: master alert + storage overview |
 
 ## Hardware Bill of Materials
 
@@ -48,12 +54,38 @@ Each monitor reads its sensors, drives its own displays with color-coded thresho
 | LED Display (Small) | BOD-Gen | 2 (watts) | Power Monitor |
 | Diode Slide | BOD-Bar-Pwr | — | Power Monitor |
 
+### Farm Monitor
+| Device | Label | Display Mode | Driven By |
+|--------|-------|-------------|-----------|
+| IC Housing | BOD-FarmMon | — | farm-monitor.ic10 |
+| Hydroponics Tray(s) | BOD-Farm | — | Input (batch-read) |
+| Gas Sensor | BOD-Water | — | Input (water pipe pressure) |
+| LED Display (Small) | BOD-Grow | 1 (percent) | Farm Monitor |
+| LED Display (Small) | BOD-Occ | 1 (percent) | Farm Monitor |
+| LED Display (Small) | BOD-H2O | 0 (number) | Farm Monitor |
+
+### Airlock Monitor
+| Device | Label | Display Mode | Driven By |
+|--------|-------|-------------|-----------|
+| IC Housing | BOD-LockMon | — | airlock-monitor.ic10 |
+| Gas Sensor(s) | BOD-Lock | — | Input (airlock atmosphere) |
+| Door(s) | BOD-Door | — | Input (airlock doors) |
+| LED Display (Small) | BOD-LkPr | 0 (number) | Airlock Monitor |
+| LED Display (Small) | BOD-Door | 0 (number) | Airlock Monitor |
+
+### Furnace Monitor
+| Device | Label | Display Mode | Driven By |
+|--------|-------|-------------|-----------|
+| IC Housing | BOD-FurnMon | — | furnace-monitor.ic10 |
+| LED Display (Small) | BOD-Furn | 0 (number) | Furnace Monitor |
+| LED Display (Small) | BOD-FPrs | 0 (number) | Furnace Monitor |
+
 ### Per Storage Area
 | Device | Label | Driven By |
 |--------|-------|-----------|
 | IC Housing | BOD-StorMon | storage-monitor-template.ic10 |
 
-**Totals**: 4 IC Housings (min), 1+ Gas Sensors, 6 LED Displays, 2 Diode Slides
+**Totals**: 7 IC Housings (min), 3+ Gas Sensors, 13 LED Displays, 2 Diode Slides
 
 ## Wall Layout
 
@@ -87,6 +119,25 @@ BOD-O2 / BOD-Bar-O2         BOD-Gen
 |--------|-------|--------|-----|
 | Min Fill % | >25% | 10–25% | <10% |
 
+### Farming (farm-monitor.ic10)
+| Metric | Green | Orange | Red |
+|--------|-------|--------|-----|
+| Tray Occupancy | >50% | 25–50% | <25% |
+| Growth Readiness | >10% | 0–10% | 0% |
+| Water Pressure (kPa) | >50 | 20–50 | <20 |
+
+### Airlocks (airlock-monitor.ic10)
+| Metric | Green | Orange | Red |
+|--------|-------|--------|-----|
+| Airlock Pressure (kPa) | 20–120 | 5–20 / 120–150 | <5 / >150 |
+| Doors Open | 0 | 1 | >1 |
+
+### Furnaces (furnace-monitor.ic10)
+| Metric | Green | Orange | Red |
+|--------|-------|--------|-----|
+| Furnace Temp (K) | <4000 | 4000–6000 | >6000 |
+| Furnace Pressure (Pa) | <50000 | 50000–80000 | >80000 |
+
 ## Setup Checklist
 
 1. Print hardware: 4 IC Housings, 1+ Gas Sensors, 6 LED Displays, 2 Diode Slides
@@ -109,4 +160,8 @@ BOD-O2 / BOD-Bar-O2         BOD-Gen
 1. Create a new IC10 script that reads sensors, drives displays, and writes alert (0/1/2) to `s db Setting`
 2. Label its IC Housing `BOD-NewMon`
 3. In `bod-core.ic10`, add one `lbn` line in `PollMonitors` and one `max` line in `EvalMaster`
-4. BOD Core has 67 free lines for expansion
+4. BOD Core has 53 free lines for expansion
+
+## Fail-Silent Behavior
+
+Subsystem monitors that aren't deployed don't trigger false alerts. When `lbn` finds no matching IC Housing, the alert value defaults to 0 (OK). Storage monitors use an explicit device count check (`lbn ... On Sum`) to skip alert evaluation when no monitors exist.
