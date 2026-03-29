@@ -14,6 +14,7 @@ alias vStorAlert r4
 alias vMaster r5
 alias vScratch r6
 alias vColor r7
+alias vStorCount r8
 main:
 yield
 jal PollMonitors
@@ -23,6 +24,8 @@ PollMonitors:
 # Read alert levels from subsystem monitors
 lbn vAtmoAlert HASH("StructureCircuitHousing") HASH("BOD-AtmoMon") Setting Average
 lbn vPwrAlert HASH("StructureCircuitHousing") HASH("BOD-PwrMon") Setting Average
+# Count active storage monitors (On=1 per powered housing)
+lbn vStorCount HASH("StructureCircuitHousing") HASH("BOD-StorMon") On Sum
 # Read storage monitors: average for display, minimum for alert
 lbn vStorAvg HASH("StructureCircuitHousing") HASH("BOD-StorMon") Setting Average
 lbn vStorMin HASH("StructureCircuitHousing") HASH("BOD-StorMon") Setting Minimum
@@ -31,12 +34,14 @@ div vScratch vStorAvg 100
 sbn HASH("StructureConsoleLED5") HASH("BOD-Stor") Setting vScratch
 j ra
 EvalMaster:
-# Storage alert from minimum fill %
+# Storage alert from minimum fill % (skip if no monitors)
 move vStorAlert 0
+beqz vStorCount skipStor
 slt vScratch vStorMin StorWarn
 select vStorAlert vScratch 1 vStorAlert
 slt vScratch vStorMin StorCrit
 select vStorAlert vScratch 2 vStorAlert
+skipStor:
 # Storage display color
 move vColor ColorGreen
 sgt vScratch vStorAlert 0
