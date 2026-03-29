@@ -19,8 +19,8 @@ Each monitor reads its sensors, drives its own displays with color-coded thresho
 
 | Script | IC Housing Label | Lines | Purpose |
 |--------|-----------------|-------|---------|
-| `atmo-monitor.ic10` | BOD-AtmoMon | 83 | Atmosphere: temp, pressure, O2 |
-| `power-monitor.ic10` | BOD-PwrMon | 56 | Power: battery charge, generation |
+| `atmo-monitor.ic10` | BOD-AtmoMon | 113 | Atmosphere: temp, pressure, O2, CO2, pollutants |
+| `power-monitor.ic10` | BOD-PwrMon | 78 | Power: battery, generation, solar angle + night mode |
 | `storage-monitor-template.ic10` | BOD-StorMon | 26 | Storage: clone per area, fill % |
 | `farm-monitor.ic10` | BOD-FarmMon | 72 | Farming: growth, occupancy, water pressure |
 | `airlock-monitor.ic10` | BOD-LockMon | 63 | Airlocks: pressure, door states |
@@ -44,6 +44,8 @@ Each monitor reads its sensors, drives its own displays with color-coded thresho
 | LED Display (Small) | BOD-Temp | 0 (number) | Atmo Monitor |
 | LED Display (Small) | BOD-Press | 0 (number) | Atmo Monitor |
 | LED Display (Small) | BOD-O2 | 1 (percent) | Atmo Monitor |
+| LED Display (Small) | BOD-CO2 | 1 (percent) | Atmo Monitor |
+| LED Display (Small) | BOD-Poll | 1 (percent) | Atmo Monitor |
 | Diode Slide | BOD-Bar-O2 | — | Atmo Monitor |
 
 ### Power Monitor
@@ -52,6 +54,8 @@ Each monitor reads its sensors, drives its own displays with color-coded thresho
 | IC Housing | BOD-PwrMon | — | power-monitor.ic10 |
 | LED Display (Medium) | BOD-Pwr | 1 (percent) | Power Monitor |
 | LED Display (Small) | BOD-Gen | 2 (watts) | Power Monitor |
+| Daylight Sensor | BOD-Sun | — | Input (solar angle) |
+| LED Display (Small) | BOD-Sun | 0 (number) | Power Monitor |
 | Diode Slide | BOD-Bar-Pwr | — | Power Monitor |
 
 ### Farm Monitor
@@ -85,7 +89,7 @@ Each monitor reads its sensors, drives its own displays with color-coded thresho
 |--------|-------|-----------|
 | IC Housing | BOD-StorMon | storage-monitor-template.ic10 |
 
-**Totals**: 7 IC Housings (min), 3+ Gas Sensors, 13 LED Displays, 2 Diode Slides
+**Totals**: 7 IC Housings (min), 3+ Gas Sensors, 1 Daylight Sensor, 16 LED Displays, 2 Diode Slides
 
 ## Wall Layout
 
@@ -108,11 +112,16 @@ BOD-O2 / BOD-Bar-O2         BOD-Gen
 | Temp (°C) | 18–26 | 10–18 / 26–35 | <10 / >35 |
 | Pressure (kPa) | 90–120 | 60–90 / 120–150 | <60 / >150 |
 | O2 Ratio | 0.18–0.24 | 0.14–0.18 / 0.24–0.30 | <0.14 / >0.30 |
+| CO2 Ratio | <0.02 | 0.02–0.05 | >0.05 |
+| Pollutant (N2O) | <0.01 | 0.01–0.03 | >0.03 |
 
 ### Power (power-monitor.ic10)
 | Metric | Green | Orange | Red |
 |--------|-------|--------|-----|
 | Battery % | >50% | 20–50% | <20% |
+| Solar Angle | >5° (day) | — | <5° (night, blue) |
+
+Night mode: When solar angle < 5°, BOD-Sun and BOD-Gen displays turn blue. Battery alerts are capped at orange during night (drain is expected).
 
 ### Storage (bod-core.ic10)
 | Metric | Green | Orange | Red |

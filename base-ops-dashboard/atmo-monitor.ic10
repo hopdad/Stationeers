@@ -1,5 +1,6 @@
 # Atmosphere Monitor | IC Housing: BOD-AtmoMon
 # Reads BOD-Atmo sensors, drives displays, writes alert to db
+# Tracks: temp, pressure, O2, CO2, pollutant (N2O)
 define TempWarnLo 18
 define TempWarnHi 26
 define TempCritLo 10
@@ -12,15 +13,21 @@ define O2WarnLo 0.18
 define O2WarnHi 0.24
 define O2CritLo 0.14
 define O2CritHi 0.30
+define CO2WarnHi 0.02
+define CO2CritHi 0.05
+define PollWarnHi 0.01
+define PollCritHi 0.03
 define ColorGreen 2
 define ColorOrange 3
 define ColorRed 4
 alias vTemp r0
 alias vPress r1
 alias vO2 r2
-alias vAlert r3
-alias vScratch r4
-alias vColor r5
+alias vCO2 r3
+alias vPoll r4
+alias vAlert r5
+alias vScratch r6
+alias vColor r7
 main:
 yield
 jal ReadSensors
@@ -36,10 +43,15 @@ sbn HASH("StructureConsoleLED5") HASH("BOD-Press") Setting vPress
 lbn vO2 HASH("StructureGasSensor") HASH("BOD-Atmo") RatioOxygen Average
 sbn HASH("StructureConsoleLED5") HASH("BOD-O2") Setting vO2
 sbn HASH("StructureDiodeSlide") HASH("BOD-Bar-O2") Setting vO2
+# Waste gases
+lbn vCO2 HASH("StructureGasSensor") HASH("BOD-Atmo") RatioCarbonDioxide Average
+sbn HASH("StructureConsoleLED5") HASH("BOD-CO2") Setting vCO2
+lbn vPoll HASH("StructureGasSensor") HASH("BOD-Atmo") RatioNitrousOxide Average
+sbn HASH("StructureConsoleLED5") HASH("BOD-Poll") Setting vPoll
 j ra
 SetColors:
 move vAlert 0
-# Temp color (10 lines) then derive alert from color
+# Temp color
 move vColor ColorGreen
 slt vScratch vTemp TempWarnLo
 select vColor vScratch ColorOrange vColor
@@ -76,6 +88,24 @@ select vColor vScratch ColorRed vColor
 sgt vScratch vO2 O2CritHi
 select vColor vScratch ColorRed vColor
 sbn HASH("StructureConsoleLED5") HASH("BOD-O2") Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+# CO2 color (high-only threshold)
+move vColor ColorGreen
+sgt vScratch vCO2 CO2WarnHi
+select vColor vScratch ColorOrange vColor
+sgt vScratch vCO2 CO2CritHi
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-CO2") Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+# Pollutant (N2O) color (high-only threshold)
+move vColor ColorGreen
+sgt vScratch vPoll PollWarnHi
+select vColor vScratch ColorOrange vColor
+sgt vScratch vPoll PollCritHi
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-Poll") Color vColor
 sub vScratch vColor ColorGreen
 max vAlert vAlert vScratch
 # Write master alert to IC Housing
