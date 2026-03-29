@@ -6,7 +6,7 @@ A modular monitoring system for Stationeers. Each sub-module owns a subsystem --
 
 ```
 atmo-monitor/ ────┐  (1..N zones)
-power-monitor/ ───┤
+power-monitor/ ───┤  (1..N grids + optional circuit breaker)
 solar-tracker/ ───┤
 farm-monitor/ ────┼──> core/bod-core ──> Master Alert Display
 airlock-monitor/ ─┤  (1..N airlocks)
@@ -24,7 +24,8 @@ Each monitor writes an alert level to its IC Housing's `db.Setting`. BOD Core po
 | `core/` | BOD-CycleMon | cycle-display.ic10 | Optional: rotating multi-reading display |
 | `core/` | BOD-Alarm | alarm-plugin.ic10 | Optional: audible alarm on critical |
 | `atmo-monitor/` | BOD-AtmoMon | atmo-zone-template.ic10 | Atmosphere: clone per zone, temp/press/O2/CO2/N2O |
-| `power-monitor/` | BOD-PwrMon | power-monitor.ic10 | Power: battery, generation, solar angle |
+| `power-monitor/` | BOD-PwrMon | power-grid-template.ic10 | Power: clone per grid, battery/generation |
+| `power-monitor/` | BOD-Breaker | circuit-breaker.ic10 | Optional: automatic load shedding |
 | `solar-tracker/` | BOD-SolarMon | solar-tracker.ic10 | Solar panel tracking + efficiency |
 | `farm-monitor/` | BOD-FarmMon | farm-monitor.ic10 | Farming: growth, occupancy, water pressure |
 | `airlock-monitor/` | BOD-LockMon | airlock-template.ic10 | Airlocks: clone per airlock, pressure/doors |
@@ -48,7 +49,7 @@ Alert levels:
 
 **Exception**: Storage monitors write fill percentage (0-100) instead of alert level. BOD Core evaluates storage thresholds itself.
 
-BOD Core reads each monitor via `lbn`. Multi-instance modules (atmo, airlock, storage) use `Maximum` to surface the worst-case. Single-instance modules use `Average`.
+BOD Core reads each monitor via `lbn`. Multi-instance modules (atmo, airlock, power, storage) use `Maximum` to surface the worst-case. Single-instance modules use `Average`.
 
 ## Color Codes
 

@@ -1,0 +1,87 @@
+# Circuit Breaker | IC Housing: BOD-Breaker
+# Load shedding: shuts down non-critical systems when battery is low.
+# Restores when charge recovers. Hysteresis prevents oscillation.
+#
+# SETUP: Route power to base sections through control devices
+# (Transformer, APC, etc). Label them by priority tier.
+# Tier 3 = luxury (lights, displays) — shed first
+# Tier 2 = important (farms, furnaces) — shed second
+# Critical systems (life support) get NO label — always powered.
+#
+# --- EDIT THESE ---
+define GridName HASH("MyGrid")
+define CtrlType HASH("StructureTransformerSmall")
+define Tier3Name HASH("Shed-T3")
+define Tier2Name HASH("Shed-T2")
+define DispShed HASH("BOD-Shed")
+# --- END EDIT ---
+# Thresholds: shed below, restore above (gap = hysteresis)
+define Tier3Shed 0.40
+define Tier3Restore 0.55
+define Tier2Shed 0.20
+define Tier2Restore 0.35
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+alias vCharge r0
+alias vMaxChg r1
+alias vPwr r2
+alias vT3On r3
+alias vT2On r4
+alias vShed r5
+alias vScratch r6
+alias vColor r7
+alias vScratch2 r8
+main:
+yield
+jal ReadBattery
+jal EvalBreaker
+jal UpdateDisplay
+j main
+ReadBattery:
+lbn vCharge HASH("StructureBatterySmall") GridName Charge Sum
+lbn vScratch HASH("StructureBatteryLarge") GridName Charge Sum
+add vCharge vCharge vScratch
+lbn vMaxChg HASH("StructureBatterySmall") GridName Maximum Sum
+lbn vScratch HASH("StructureBatteryLarge") GridName Maximum Sum
+add vMaxChg vMaxChg vScratch
+move vPwr 0
+beqz vMaxChg skipDiv
+div vPwr vCharge vMaxChg
+skipDiv:
+j ra
+EvalBreaker:
+# Read current state of control devices (1=on, 0=shed)
+lbn vT3On CtrlType Tier3Name On Average
+lbn vT2On CtrlType Tier2Name On Average
+# Tier 3 hysteresis:
+# If currently on:  stay on while charge >= shed threshold
+# If currently off: turn on only when charge >= restore threshold
+sge vScratch vPwr Tier3Shed
+sge vScratch2 vPwr Tier3Restore
+select vT3On vT3On vScratch2 vScratch
+sbn CtrlType Tier3Name On vT3On
+# Tier 2 hysteresis (same pattern, tighter thresholds)
+sge vScratch vPwr Tier2Shed
+sge vScratch2 vPwr Tier2Restore
+select vT2On vT2On vScratch2 vScratch
+sbn CtrlType Tier2Name On vT2On
+j ra
+UpdateDisplay:
+# Count tiers shed: 0=all running, 1=T3 shed, 2=T2+T3 shed
+move vShed 0
+seqz vScratch vT3On
+add vShed vShed vScratch
+seqz vScratch vT2On
+add vShed vShed vScratch
+sbn HASH("StructureConsoleLED5") DispShed Setting vShed
+# Color: green=0 shed, orange=1 shed, red=2 shed
+move vColor ColorGreen
+sgt vScratch vShed 0
+select vColor vScratch ColorOrange vColor
+sgt vScratch vShed 1
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") DispShed Color vColor
+# Write shed count to db for visibility
+s db Setting vShed
+j ra

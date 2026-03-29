@@ -27,8 +27,8 @@ Central aggregator and optional plugins for the Base Ops Dashboard. This is your
 ### How It Works
 
 BOD Core polls 7 subsystem monitors each tick via `lbn`:
-- AtmoMon, LockMon (multi-instance, read via `Maximum` for worst-case zone/airlock)
-- PwrMon, FarmMon, FurnMon, SolarMon (single-instance, read via `Average`)
+- AtmoMon, LockMon, PwrMon (multi-instance, read via `Maximum` for worst-case)
+- FarmMon, FurnMon, SolarMon (single-instance, read via `Average`)
 - StorMon (multi-instance, fill percentage 0-100, evaluated against its own thresholds)
 
 The master alert is the **worst-case** (maximum) across all monitors. Storage uses the **minimum** fill across all storage monitors for alert evaluation.

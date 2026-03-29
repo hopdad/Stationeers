@@ -1,0 +1,86 @@
+# Power Grid Template | IC Housing: BOD-PwrMon
+# Clone per power grid. Change the EDIT section below.
+# IC Housing MUST be labeled "BOD-PwrMon"
+#
+# Label all batteries + generators on this grid with the same name.
+# lbn reads by PrefabHash + Name, so one name works across device types.
+#
+# --- EDIT THESE PER GRID ---
+define GridName HASH("MyGrid")
+define SunName HASH("BOD-Sun")
+define DispPwr HASH("BOD-Pwr")
+define DispGen HASH("BOD-Gen")
+define DispSun HASH("BOD-Sun")
+define DispBarPwr HASH("BOD-Bar-Pwr")
+# --- END EDIT ---
+define BattWarn 0.50
+define BattCrit 0.20
+define NightAngle 5
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+define ColorBlue 6
+alias vCharge r0
+alias vMaxChg r1
+alias vPwr r2
+alias vGen r3
+alias vAlert r4
+alias vScratch r5
+alias vColor r6
+alias vSolar r7
+alias vIsNight r8
+main:
+yield
+jal ReadPower
+jal SetColors
+j main
+ReadPower:
+# Battery charge: sum small + large by grid name
+lbn vCharge HASH("StructureBatterySmall") GridName Charge Sum
+lbn vScratch HASH("StructureBatteryLarge") GridName Charge Sum
+add vCharge vCharge vScratch
+# Battery max capacity
+lbn vMaxChg HASH("StructureBatterySmall") GridName Maximum Sum
+lbn vScratch HASH("StructureBatteryLarge") GridName Maximum Sum
+add vMaxChg vMaxChg vScratch
+# Compute charge ratio (guard div-by-zero)
+move vPwr 0
+beqz vMaxChg skipDiv
+div vPwr vCharge vMaxChg
+skipDiv:
+sbn HASH("StructureConsoleLED5") DispPwr Setting vPwr
+sbn HASH("StructureDiodeSlide") DispBarPwr Setting vPwr
+# Power generation: solar + turbines on this grid
+lbn vGen HASH("StructureSolarPanel") GridName Current Sum
+lbn vScratch HASH("StructureWindTurbine") GridName Current Sum
+add vGen vGen vScratch
+sbn HASH("StructureConsoleLED5") DispGen Setting vGen
+# Solar angle from daylight sensor
+lbn vSolar HASH("StructureDaylightSensor") SunName SolarAngle Average
+sbn HASH("StructureConsoleLED5") DispSun Setting vSolar
+slt vIsNight vSolar NightAngle
+j ra
+SetColors:
+# Solar display
+move vColor ColorGreen
+select vColor vIsNight ColorBlue vColor
+sbn HASH("StructureConsoleLED5") DispSun Color vColor
+# Battery color
+move vColor ColorGreen
+slt vScratch vPwr BattWarn
+select vColor vScratch ColorOrange vColor
+slt vScratch vPwr BattCrit
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") DispPwr Color vColor
+# Derive alert
+sub vAlert vColor ColorGreen
+# Night suppression: cap at warn
+sgt vScratch vAlert 1
+and vScratch vScratch vIsNight
+select vAlert vScratch 1 vAlert
+# Gen display: blue at night
+move vColor ColorGreen
+select vColor vIsNight ColorBlue vColor
+sbn HASH("StructureConsoleLED5") DispGen Color vColor
+s db Setting vAlert
+j ra
