@@ -13,6 +13,9 @@ waste-monitor/ ───┼──> core/bod-core ──> Master Alert Display
 airlock-monitor/ ─┤  (1..N airlocks)         ↑
 furnace-monitor/ ─┤              core/watchdog (monitors BOD health)
 storage-monitor/ ─┘  (1..N areas)
+
+auto-craft/ ──────── Independent: auto-craft-template ×N ──> craft-core
+                     (optional BOD integration via db.Setting)
 ```
 
 Each monitor writes an alert level to its IC Housing's `db.Setting`. BOD Core polls all monitors via `lbn` and rolls up the worst-case into a master alert (0=OK, 1=WARN, 2=CRIT).
@@ -36,6 +39,8 @@ Each monitor writes an alert level to its IC Housing's `db.Setting`. BOD Core po
 | `furnace-monitor/` | BOD-FurnMon | furnace-area-template.ic10 | Furnaces: clone per area, temp/pressure |
 | `waste-monitor/` | BOD-WasteMon | waste-monitor-template.ic10 | Waste processing: clone per area, filters/pressure |
 | `storage-monitor/` | BOD-StorMon | storage-monitor-template.ic10 | Storage: clone per area, fill % |
+| `auto-craft/` | BOD-Craft | auto-craft-template.ic10 | Auto-craft: clone per machine/recipe |
+| `auto-craft/` | BOD-CraftCore | craft-core.ic10 | Auto-craft aggregator (independent) |
 
 Each module folder has its own README with hardware BOM, thresholds, and setup instructions.
 

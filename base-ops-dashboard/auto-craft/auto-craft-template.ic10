@@ -1,0 +1,80 @@
+# Auto-Craft Template | IC Housing: BOD-Craft
+# Clone per machine/recipe. Watches stock, triggers crafting when low.
+# IC Housing MUST be labeled "BOD-Craft"
+#
+# Each instance manages ONE recipe on ONE named machine.
+# For multiple recipes, deploy multiple ICs (one per recipe).
+#
+# FINDING RECIPE HASHES:
+# In-game: Stationpedia (F1) → search item → note the "Recipe Hash"
+# Or: place a Configuration Cartridge in a tablet, point at the machine
+#
+# --- EDIT THESE ---
+define MachineType HASH("StructureAutolathe")
+define MachineName HASH("MyCrafter")
+define Recipe HASH("ItemIronFrames")
+define TargetCount 10
+define DispCraft HASH("AC-Status")
+# --- END EDIT ---
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+define StatusIdle 0
+define StatusCraft 1
+define StatusError 2
+alias vStock r0
+alias vError r1
+alias vNeedCraft r2
+alias vStatus r3
+alias vScratch r4
+alias vColor r5
+alias vPrevStock r6
+alias vStable r7
+main:
+yield
+jal ReadMachine
+jal EvalCraft
+jal UpdateDisplay
+j main
+ReadMachine:
+# Check machine error state (missing materials, broken, etc.)
+lbn vError MachineType MachineName Error Maximum
+# Read export count (items produced since last ClearMemory)
+lbn vStock MachineType MachineName ExportCount Sum
+j ra
+EvalCraft:
+# Error takes priority
+bgtz vError setError
+# Do we need to craft? (stock below target)
+slt vNeedCraft vStock TargetCount
+beqz vNeedCraft setIdle
+# Stock hasn't changed since last tick = machine finished or stalled
+# If stock changed, it's actively crafting — don't re-trigger
+seq vScratch vStock vPrevStock
+move vPrevStock vStock
+# Trigger craft: set recipe and activate
+sbn MachineType MachineName RecipeHash Recipe
+sbn MachineType MachineName Activate 1
+move vStatus StatusCraft
+j doneEval
+setError:
+move vStatus StatusError
+j doneEval
+setIdle:
+move vStatus StatusIdle
+move vPrevStock vStock
+doneEval:
+j ra
+UpdateDisplay:
+# Show current stock count on display
+sbn HASH("StructureConsoleLED5") DispCraft Setting vStock
+# Color by status
+move vColor ColorGreen
+sgt vScratch vStatus StatusIdle
+select vColor vScratch ColorOrange vColor
+sgt vScratch vStatus StatusCraft
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") DispCraft Color vColor
+# Write status for craft-core aggregation
+s db Setting vStatus
+j ra

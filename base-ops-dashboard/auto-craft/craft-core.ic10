@@ -1,0 +1,74 @@
+# Craft Core Aggregator | IC Housing: BOD-CraftCore
+# Polls all auto-crafter instances, drives master craft status display.
+# Independent from BOD Core — runs its own micro-architecture.
+#
+# Optionally integrates with BOD: BOD Core can read this housing's
+# db.Setting with one added lbn line (see README).
+#
+# --- EDIT THESE ---
+define DispAlert HASH("AC-Alert")
+define DispActive HASH("AC-Active")
+define DispErrors HASH("AC-Errors")
+# --- END EDIT ---
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+alias vCraftCount r0
+alias vWorstStatus r1
+alias vErrorCount r2
+alias vActiveCount r3
+alias vMaster r4
+alias vScratch r5
+alias vColor r6
+alias vScratch2 r7
+main:
+yield
+jal PollCrafters
+jal EvalMaster
+j main
+PollCrafters:
+# Count active crafter housings
+lbn vCraftCount HASH("StructureCircuitHousing") HASH("BOD-Craft") On Sum
+# Worst-case status across all crafters (0=idle, 1=craft, 2=error)
+lbn vWorstStatus HASH("StructureCircuitHousing") HASH("BOD-Craft") Setting Maximum
+# Count how many are in error state (Setting = 2)
+# Sum all statuses, subtract non-error contribution
+# Each idle=0, crafting=1, error=2
+# If sum > craftCount, at least some are errored or crafting
+lbn vScratch HASH("StructureCircuitHousing") HASH("BOD-Craft") Setting Sum
+# Active crafting: count those with Setting >= 1
+lbn vActiveCount HASH("StructureCircuitHousing") HASH("BOD-Craft") Setting Minimum
+# Simple approach: show total crafters on AC-Active
+sbn HASH("StructureConsoleLED5") DispActive Setting vCraftCount
+# Show worst status value for error display
+# If worst = 2, there's at least one error
+sge vErrorCount vWorstStatus 2
+sbn HASH("StructureConsoleLED5") DispErrors Setting vErrorCount
+j ra
+EvalMaster:
+# Master alert = worst crafter status
+move vMaster vWorstStatus
+# Active display color: green if crafters exist, orange if none
+move vColor ColorGreen
+beqz vCraftCount noCount
+j colorActive
+noCount:
+move vColor ColorOrange
+colorActive:
+sbn HASH("StructureConsoleLED5") DispActive Color vColor
+# Error display color
+move vColor ColorGreen
+sgt vScratch vErrorCount 0
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") DispErrors Color vColor
+# Master alert display
+sbn HASH("StructureConsoleLED5") DispAlert Setting vMaster
+move vColor ColorGreen
+sgt vScratch vMaster 0
+select vColor vScratch ColorOrange vColor
+sgt vScratch vMaster 1
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") DispAlert Color vColor
+# Export for BOD integration (optional)
+s db Setting vMaster
+j ra
