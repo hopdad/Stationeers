@@ -126,6 +126,16 @@ j writePage
 # lbn vColor HASH("StructureConsoleLED5") HASH("BOD-FPrs") Color Average
 # move vMode ModeNum
 # j writePage
+# page16: # Solar Tracking Angle
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Trk") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Trk") Color Average
+# move vMode ModeNum
+# j writePage
+# page17: # Solar Efficiency
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Eff") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Eff") Color Average
+# move vMode ModePct
+# j writePage
 # ===== WRITE TO DISPLAY =====
 writePage:
 sbn HASH("StructureConsoleLED5") HASH("BOD-Cycle") Mode vMode

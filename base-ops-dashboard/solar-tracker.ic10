@@ -1,0 +1,79 @@
+# Solar Tracker | IC Housing: BOD-SolarMon
+# Active solar panel tracking + efficiency monitoring.
+# Reads daylight sensor, points panels at sun, reports efficiency to BOD.
+#
+# CONFIGURATION:
+# - Panels must be named "BOD-Panel" via Labeler
+# - Daylight sensor named "BOD-Sun" (shared with power monitor)
+# - EFFICIENCY_WARN/CRIT: alert thresholds for solar efficiency ratio
+# - NIGHT_ANGLE: below this angle, panels park at 0 and skip alerts
+define NIGHT_ANGLE 5
+define EffWarn 0.50
+define EffCrit 0.25
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+define ColorBlue 6
+alias vSolarAngle r0
+alias vPanelAngle r1
+alias vGenActual r2
+alias vGenMax r3
+alias vEfficiency r4
+alias vAlert r5
+alias vScratch r6
+alias vColor r7
+alias vIsNight r8
+main:
+yield
+jal TrackSun
+jal ReadEfficiency
+jal SetColors
+j main
+TrackSun:
+# Read solar angle from daylight sensor
+lbn vSolarAngle HASH("StructureDaylightSensor") HASH("BOD-Sun") SolarAngle Average
+# Check if nighttime
+slt vIsNight vSolarAngle NIGHT_ANGLE
+# Set panel vertical angle to match sun (park at 0 at night)
+move vPanelAngle vSolarAngle
+select vPanelAngle vIsNight 0 vPanelAngle
+# Write angle to all named panels
+sbn HASH("StructureSolarPanel") HASH("BOD-Panel") Vertical vPanelAngle
+# Display current tracking angle
+sbn HASH("StructureConsoleLED5") HASH("BOD-Trk") Setting vPanelAngle
+j ra
+ReadEfficiency:
+# Actual generation from tracked panels
+lbn vGenActual HASH("StructureSolarPanel") HASH("BOD-Panel") Current Sum
+# Max rated capacity of tracked panels
+lbn vGenMax HASH("StructureSolarPanel") HASH("BOD-Panel") Maximum Sum
+# Compute efficiency ratio (guard div-by-zero)
+move vEfficiency 0
+beqz vGenMax skipEff
+div vEfficiency vGenActual vGenMax
+skipEff:
+# Display efficiency
+sbn HASH("StructureConsoleLED5") HASH("BOD-Eff") Setting vEfficiency
+j ra
+SetColors:
+move vAlert 0
+# Tracking display: blue at night, green during day
+move vColor ColorGreen
+select vColor vIsNight ColorBlue vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-Trk") Color vColor
+# Efficiency color (skip alert at night — 0% efficiency is expected)
+move vColor ColorGreen
+beqz vIsNight evalEff
+move vColor ColorBlue
+j writeEff
+evalEff:
+slt vScratch vEfficiency EffWarn
+select vColor vScratch ColorOrange vColor
+slt vScratch vEfficiency EffCrit
+select vColor vScratch ColorRed vColor
+sub vAlert vColor ColorGreen
+writeEff:
+sbn HASH("StructureConsoleLED5") HASH("BOD-Eff") Color vColor
+# Write alert to IC Housing
+s db Setting vAlert
+j ra

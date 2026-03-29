@@ -27,6 +27,7 @@ Each monitor reads its sensors, drives its own displays with color-coded thresho
 | `furnace-monitor.ic10` | BOD-FurnMon | 55 | Furnaces: temp, pressure (Arc + Advanced) |
 | `bod-core.ic10` | BOD-Core | 75 | Aggregator: master alert + storage overview |
 | `cycle-display.ic10` | BOD-CycleMon | 58* | Configurable cycling display (*with 5 active pages) |
+| `solar-tracker.ic10` | BOD-SolarMon | 58 | Solar tracking + efficiency monitoring |
 | `alarm-plugin.ic10` | BOD-Alarm | 15 | Optional: audible alarm on critical alerts |
 
 ## Hardware Bill of Materials
@@ -86,12 +87,20 @@ Each monitor reads its sensors, drives its own displays with color-coded thresho
 | LED Display (Small) | BOD-Furn | 0 (number) | Furnace Monitor |
 | LED Display (Small) | BOD-FPrs | 0 (number) | Furnace Monitor |
 
+### Solar Tracker
+| Device | Label | Display Mode | Driven By |
+|--------|-------|-------------|-----------|
+| IC Housing | BOD-SolarMon | — | solar-tracker.ic10 |
+| Solar Panel(s) | BOD-Panel | — | Controlled by Solar Tracker |
+| LED Display (Small) | BOD-Trk | 0 (number) | Solar Tracker (tracking angle) |
+| LED Display (Small) | BOD-Eff | 1 (percent) | Solar Tracker (efficiency) |
+
 ### Per Storage Area
 | Device | Label | Driven By |
 |--------|-------|-----------|
 | IC Housing | BOD-StorMon | storage-monitor-template.ic10 |
 
-**Totals**: 7 IC Housings (min), 3+ Gas Sensors, 1 Daylight Sensor, 16 LED Displays, 2 Diode Slides
+**Totals**: 8 IC Housings (min), 3+ Gas Sensors, 1 Daylight Sensor, 18 LED Displays, 2 Diode Slides
 
 ## Wall Layout
 
@@ -142,6 +151,14 @@ Night mode: When solar angle < 5°, BOD-Sun and BOD-Gen displays turn blue. Batt
 |--------|-------|--------|-----|
 | Airlock Pressure (kPa) | 20–120 | 5–20 / 120–150 | <5 / >150 |
 | Doors Open | 0 | 1 | >1 |
+
+### Solar (solar-tracker.ic10)
+| Metric | Green | Orange | Red |
+|--------|-------|--------|-----|
+| Efficiency | >50% | 25–50% | <25% |
+| Night | — | — | Blue (alerts suppressed) |
+
+Solar panels named `BOD-Panel` are actively tracked to follow the sun. At night (angle < 5°), panels park at 0°, displays turn blue, and efficiency alerts are suppressed.
 
 ### Furnaces (furnace-monitor.ic10)
 | Metric | Green | Orange | Red |
