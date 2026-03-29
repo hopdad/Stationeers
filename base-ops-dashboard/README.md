@@ -28,10 +28,12 @@ Each monitor writes an alert level to its IC Housing's `db.Setting`. BOD Core po
 | `atmo-monitor/` | BOD-AtmoMon | atmo-zone-template.ic10 | Atmosphere: clone per zone, temp/press/O2/CO2/N2O |
 | `power-monitor/` | BOD-PwrMon | power-grid-template.ic10 | Power: clone per grid, battery/generation |
 | `power-monitor/` | BOD-Breaker | circuit-breaker.ic10 | Optional: automatic load shedding |
+| `power-monitor/` | BOD-Trend | battery-trend.ic10 | Optional: charge rate trend display |
+| `power-monitor/` | BOD-Restart | breaker-restart.ic10 | Optional: staged restart after breaker |
 | `solar-tracker/` | BOD-SolarMon | solar-tracker.ic10 | Solar panel tracking + efficiency |
-| `farm-monitor/` | BOD-FarmMon | farm-monitor.ic10 | Farming: growth, occupancy, water pressure |
+| `farm-monitor/` | BOD-FarmMon | farm-zone-template.ic10 | Farming: clone per zone, growth/occupancy/water |
 | `airlock-monitor/` | BOD-LockMon | airlock-template.ic10 | Airlocks: clone per airlock, pressure/doors |
-| `furnace-monitor/` | BOD-FurnMon | furnace-monitor.ic10 | Furnaces: temp, pressure |
+| `furnace-monitor/` | BOD-FurnMon | furnace-area-template.ic10 | Furnaces: clone per area, temp/pressure |
 | `waste-monitor/` | BOD-WasteMon | waste-monitor-template.ic10 | Waste processing: clone per area, filters/pressure |
 | `storage-monitor/` | BOD-StorMon | storage-monitor-template.ic10 | Storage: clone per area, fill % |
 
@@ -52,7 +54,7 @@ Alert levels:
 
 **Exception**: Storage monitors write fill percentage (0-100) instead of alert level. BOD Core evaluates storage thresholds itself.
 
-BOD Core reads each monitor via `lbn`. Multi-instance modules (atmo, airlock, power, waste, storage) use `Maximum` to surface the worst-case. Single-instance modules use `Average`.
+BOD Core reads each monitor via `lbn`. Multi-instance modules (atmo, airlock, power, farm, furnace, waste, storage) use `Maximum` to surface the worst-case. Single-instance modules use `Average`.
 
 ## Color Codes
 

@@ -1,0 +1,68 @@
+# Battery Trend | IC Housing: BOD-Trend
+# Tracks charge delta between ticks. Shows rising/falling/stable.
+# Early warning before the circuit breaker kicks in.
+#
+# Display reads as hours remaining (negative = draining, positive = charging).
+# Color: green = charging, orange = stable/slow drain, red = fast drain.
+#
+# --- EDIT THESE ---
+define GridName HASH("MyGrid")
+define DispTrend HASH("BOD-Trend")
+# --- END EDIT ---
+# Drain rate thresholds (charge ratio lost per tick)
+# ~0.001/tick = moderate drain, ~0.005/tick = heavy drain
+define DrainWarn -0.001
+define DrainCrit -0.005
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+alias vCharge r0
+alias vMaxChg r1
+alias vPwr r2
+alias vPrevPwr r3
+alias vDelta r4
+alias vScratch r5
+alias vColor r6
+alias vSmooth r7
+# Smoothing factor: 0.2 = gentle, 0.5 = responsive
+define SmoothAlpha 0.3
+main:
+yield
+jal ReadBattery
+jal CalcTrend
+jal UpdateDisplay
+j main
+ReadBattery:
+lbn vCharge HASH("StructureBatterySmall") GridName Charge Sum
+lbn vScratch HASH("StructureBatteryLarge") GridName Charge Sum
+add vCharge vCharge vScratch
+lbn vMaxChg HASH("StructureBatterySmall") GridName Maximum Sum
+lbn vScratch HASH("StructureBatteryLarge") GridName Maximum Sum
+add vMaxChg vMaxChg vScratch
+move vPwr 0
+beqz vMaxChg skipDiv
+div vPwr vCharge vMaxChg
+skipDiv:
+j ra
+CalcTrend:
+# Delta = current - previous
+sub vDelta vPwr vPrevPwr
+# Exponential moving average to smooth noise
+# vSmooth = vSmooth + alpha * (vDelta - vSmooth)
+sub vScratch vDelta vSmooth
+mul vScratch vScratch SmoothAlpha
+add vSmooth vSmooth vScratch
+# Save for next tick
+move vPrevPwr vPwr
+j ra
+UpdateDisplay:
+# Display smoothed delta (negative = draining)
+sbn HASH("StructureConsoleLED5") DispTrend Setting vSmooth
+# Color: green = charging, orange = slow drain, red = fast drain
+move vColor ColorGreen
+slt vScratch vSmooth DrainWarn
+select vColor vScratch ColorOrange vColor
+slt vScratch vSmooth DrainCrit
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") DispTrend Color vColor
+j ra

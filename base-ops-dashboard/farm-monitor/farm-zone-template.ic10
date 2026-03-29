@@ -1,0 +1,82 @@
+# Farm Zone Template | IC Housing: BOD-FarmMon
+# Clone per farm zone. Change the EDIT section below.
+# IC Housing MUST be labeled "BOD-FarmMon"
+#
+# Each zone reads its own trays + water sensor, drives local displays.
+# BOD Core polls all zones via lbn Maximum for worst-case alert.
+#
+# --- EDIT THESE PER ZONE ---
+define TrayName HASH("MyFarm")
+define WaterName HASH("MyFarm")
+define DispGrow HASH("BOD-Grow")
+define DispOcc HASH("BOD-Occ")
+define DispH2O HASH("BOD-H2O")
+# --- END EDIT ---
+define GrowthWarn 0.10
+define GrowthCrit 0.00
+define WaterWarnLo 50
+define WaterCritLo 20
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+alias vGrowth r0
+alias vOccupied r1
+alias vTotal r2
+alias vOccPct r3
+alias vWater r4
+alias vAlert r5
+alias vScratch r6
+alias vColor r7
+main:
+yield
+jal ReadFarm
+jal SetColors
+j main
+ReadFarm:
+# Average growth across named trays (0-1, 1 = ready to harvest)
+lbn vGrowth HASH("StructureHydroponics") TrayName Growth Average
+sbn HASH("StructureConsoleLED5") DispGrow Setting vGrowth
+# Tray occupancy: trays with a plant vs total powered trays
+lbn vOccupied HASH("StructureHydroponics") TrayName Occupied Sum
+lbn vTotal HASH("StructureHydroponics") TrayName On Sum
+move vOccPct 0
+beqz vTotal skipOcc
+div vOccPct vOccupied vTotal
+skipOcc:
+sbn HASH("StructureConsoleLED5") DispOcc Setting vOccPct
+# Water pressure from pipe sensor
+lbn vWater HASH("StructureGasSensor") WaterName Pressure Average
+div vWater vWater 1000
+sbn HASH("StructureConsoleLED5") DispH2O Setting vWater
+j ra
+SetColors:
+move vAlert 0
+# Growth color
+move vColor ColorGreen
+slt vScratch vOccPct GrowthWarn
+select vColor vScratch ColorOrange vColor
+slt vScratch vOccPct GrowthCrit
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") DispGrow Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+# Occupancy color
+move vColor ColorGreen
+slt vScratch vOccPct 0.50
+select vColor vScratch ColorOrange vColor
+slt vScratch vOccPct 0.25
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") DispOcc Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+# Water pressure color
+move vColor ColorGreen
+slt vScratch vWater WaterWarnLo
+select vColor vScratch ColorOrange vColor
+slt vScratch vWater WaterCritLo
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") DispH2O Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+s db Setting vAlert
+j ra

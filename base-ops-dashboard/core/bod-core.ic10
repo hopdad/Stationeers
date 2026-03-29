@@ -30,9 +30,9 @@ PollMonitors:
 # Read alert levels from subsystem monitors
 lbn vAtmoAlert HASH("StructureCircuitHousing") HASH("BOD-AtmoMon") Setting Maximum
 lbn vPwrAlert HASH("StructureCircuitHousing") HASH("BOD-PwrMon") Setting Maximum
-lbn vFarmAlert HASH("StructureCircuitHousing") HASH("BOD-FarmMon") Setting Average
+lbn vFarmAlert HASH("StructureCircuitHousing") HASH("BOD-FarmMon") Setting Maximum
 lbn vLockAlert HASH("StructureCircuitHousing") HASH("BOD-LockMon") Setting Maximum
-lbn vFurnAlert HASH("StructureCircuitHousing") HASH("BOD-FurnMon") Setting Average
+lbn vFurnAlert HASH("StructureCircuitHousing") HASH("BOD-FurnMon") Setting Maximum
 lbn vSolarAlert HASH("StructureCircuitHousing") HASH("BOD-SolarMon") Setting Average
 lbn vWasteAlert HASH("StructureCircuitHousing") HASH("BOD-WasteMon") Setting Maximum
 lbn vWatchAlert HASH("StructureCircuitHousing") HASH("BOD-Watch") Setting Average

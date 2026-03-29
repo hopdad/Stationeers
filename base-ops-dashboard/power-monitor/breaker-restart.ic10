@@ -1,0 +1,82 @@
+# Breaker Auto-Restart | IC Housing: BOD-Restart
+# Re-enables devices after circuit breaker restores a tier.
+# Staggers restarts with a delay to prevent inrush power spike.
+#
+# Problem: some devices (furnaces, hydro trays, filtration) don't
+# resume automatically after power is cut and restored by the breaker.
+# This script watches the breaker's tier states and re-enables devices
+# in sequence when a tier comes back online.
+#
+# --- EDIT THESE ---
+define CtrlType HASH("StructureTransformerSmall")
+define Tier3Name HASH("Shed-T3")
+define Tier2Name HASH("Shed-T2")
+# Device groups to restart (label devices by restart group)
+define Dev3Type HASH("StructureConsoleLED5")
+define Dev3Name HASH("Restart-T3")
+define Dev2Type HASH("StructureHydroponics")
+define Dev2Name HASH("Restart-T2")
+# --- END EDIT ---
+# Ticks between each device group restart (prevent inrush)
+define RestartDelay 5
+define StateIdle 0
+define StateT3 1
+define StateT2 2
+alias vT3On r0
+alias vT2On r1
+alias vT3Prev r2
+alias vT2Prev r3
+alias vState r4
+alias vTimer r5
+alias vScratch r6
+main:
+yield
+jal ReadBreaker
+jal CheckRestore
+jal RunRestart
+j main
+ReadBreaker:
+# Read current tier states from breaker control devices
+lbn vT3On CtrlType Tier3Name On Average
+lbn vT2On CtrlType Tier2Name On Average
+j ra
+CheckRestore:
+# Detect rising edge: tier was off (prev=0), now on (current=1)
+# Tier 3 restore detected?
+seqz vScratch vT3Prev
+and vScratch vScratch vT3On
+beqz vScratch checkT2
+move vState StateT3
+move vTimer 0
+checkT2:
+# Tier 2 restore detected?
+seqz vScratch vT2Prev
+and vScratch vScratch vT2On
+beqz vScratch savePrev
+move vState StateT2
+move vTimer 0
+savePrev:
+move vT3Prev vT3On
+move vT2Prev vT2On
+j ra
+RunRestart:
+# If idle, nothing to do
+beqz vState doneRestart
+# Increment timer
+add vTimer vTimer 1
+# Tier 3 restart sequence
+bne vState StateT3 tryT2
+sge vScratch vTimer RestartDelay
+beqz vScratch doneRestart
+sbn Dev3Type Dev3Name On 1
+move vState StateIdle
+j doneRestart
+tryT2:
+# Tier 2 restart sequence
+bne vState StateT2 doneRestart
+sge vScratch vTimer RestartDelay
+beqz vScratch doneRestart
+sbn Dev2Type Dev2Name On 1
+move vState StateIdle
+doneRestart:
+j ra
