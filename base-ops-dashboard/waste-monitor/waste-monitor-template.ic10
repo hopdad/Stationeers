@@ -2,27 +2,31 @@
 # Clone per waste processing area. Change the EDIT section below.
 # IC Housing MUST be labeled "BOD-WasteMon"
 #
-# Monitors filtration units for operational status and waste line
-# pressure for backups. Place a gas sensor on the waste pipe.
+# Monitors filtration unit status, input pressure (backlog),
+# and output pressure (waste buildup). No gas sensor needed —
+# reads PressureInput/PressureOutput directly from filtration units.
 #
 # --- EDIT THESE PER AREA ---
 define FilterName HASH("MyWaste")
-define SensorName HASH("MyWaste")
 define DispFilt HASH("BOD-Filt")
-define DispWPrs HASH("BOD-WPrs")
+define DispIn HASH("BOD-WIn")
+define DispOut HASH("BOD-WOut")
 # --- END EDIT ---
 # Expected filtration unit count (set to your area's count)
 define ExpFilters 2
-# Waste pipe pressure thresholds (kPa)
-define PressWarnHi 500
-define PressCritHi 800
+# Input pressure thresholds (kPa) — high = gas backing up into base
+define InWarnHi 500
+define InCritHi 800
+# Output pressure thresholds (kPa) — high = waste tank filling up
+define OutWarnHi 8000
+define OutCritHi 9500
 define ColorGreen 2
 define ColorOrange 3
 define ColorRed 4
 alias vFiltOn r0
-alias vFiltExpect r1
-alias vFiltMissing r2
-alias vWPress r3
+alias vFiltMissing r1
+alias vPressIn r2
+alias vPressOut r3
 alias vAlert r4
 alias vScratch r5
 alias vColor r6
@@ -33,30 +37,30 @@ jal ReadWaste
 jal SetColors
 j main
 ReadWaste:
-# Count active filtration units (basic + advanced)
-lb vFiltOn HASH("StructureFiltration") On Sum
-lb vScratch HASH("StructureAdvancedFiltration") On Sum
+# Count active filtration units (named: basic + advanced)
+lbn vFiltOn HASH("StructureFiltration") FilterName On Sum
+lbn vScratch HASH("StructureAdvancedFiltration") FilterName On Sum
 add vFiltOn vFiltOn vScratch
-# Also check named filtration units if labelled
-lbn vScratch HASH("StructureFiltration") FilterName On Sum
-lbn vScratch2 HASH("StructureAdvancedFiltration") FilterName On Sum
-add vScratch vScratch vScratch2
-# Use named count if available, fall back to global count
-select vFiltOn vScratch vFiltOn vScratch
 # Compute missing
-move vFiltExpect ExpFilters
-sub vFiltMissing vFiltExpect vFiltOn
+sub vFiltMissing ExpFilters vFiltOn
 max vFiltMissing vFiltMissing 0
-# Display active filter count
 sbn HASH("StructureConsoleLED5") DispFilt Setting vFiltOn
-# Waste line pressure from gas sensor
-lbn vWPress HASH("StructureGasSensor") SensorName Pressure Average
-div vWPress vWPress 1000
-sbn HASH("StructureConsoleLED5") DispWPrs Setting vWPress
+# Input pressure: read directly from filtration units (max = worst case)
+lbn vPressIn HASH("StructureFiltration") FilterName PressureInput Maximum
+lbn vScratch HASH("StructureAdvancedFiltration") FilterName PressureInput Maximum
+max vPressIn vPressIn vScratch
+div vPressIn vPressIn 1000
+sbn HASH("StructureConsoleLED5") DispIn Setting vPressIn
+# Output2 pressure: waste side (max = worst case)
+lbn vPressOut HASH("StructureFiltration") FilterName PressureOutput2 Maximum
+lbn vScratch HASH("StructureAdvancedFiltration") FilterName PressureOutput2 Maximum
+max vPressOut vPressOut vScratch
+div vPressOut vPressOut 1000
+sbn HASH("StructureConsoleLED5") DispOut Setting vPressOut
 j ra
 SetColors:
 move vAlert 0
-# Filter status color: missing units = problem
+# Filter status: missing units = problem
 move vColor ColorGreen
 sgt vScratch vFiltMissing 0
 select vColor vScratch ColorOrange vColor
@@ -65,13 +69,22 @@ select vColor vScratch ColorRed vColor
 sbn HASH("StructureConsoleLED5") DispFilt Color vColor
 sub vScratch vColor ColorGreen
 max vAlert vAlert vScratch
-# Waste pressure color: high = backup
+# Input pressure: high = gas backing up, filters can't keep up
 move vColor ColorGreen
-sgt vScratch vWPress PressWarnHi
+sgt vScratch vPressIn InWarnHi
 select vColor vScratch ColorOrange vColor
-sgt vScratch vWPress PressCritHi
+sgt vScratch vPressIn InCritHi
 select vColor vScratch ColorRed vColor
-sbn HASH("StructureConsoleLED5") DispWPrs Color vColor
+sbn HASH("StructureConsoleLED5") DispIn Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+# Output pressure: high = waste tank nearly full
+move vColor ColorGreen
+sgt vScratch vPressOut OutWarnHi
+select vColor vScratch ColorOrange vColor
+sgt vScratch vPressOut OutCritHi
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") DispOut Color vColor
 sub vScratch vColor ColorGreen
 max vAlert vAlert vScratch
 s db Setting vAlert

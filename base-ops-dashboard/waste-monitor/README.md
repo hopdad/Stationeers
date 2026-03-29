@@ -1,6 +1,6 @@
 # Waste Processing Monitor
 
-Monitors filtration units and waste gas line pressure. Detects offline filters and pipe backups before they cause atmosphere contamination. Clone per waste processing area.
+Monitors filtration units directly — no separate gas sensor needed. Tracks operational status, input pressure (gas backlog), and waste output pressure (tank filling up). Clone per waste processing area.
 
 ## IC Housing Label
 
@@ -11,71 +11,90 @@ Monitors filtration units and waste gas line pressure. Detects offline filters a
 | Device | Label | Display Mode | Purpose |
 |--------|-------|-------------|---------|
 | IC Housing | BOD-WasteMon | -- | Runs a clone of this template |
-| Gas Sensor | *(your area name)* | -- | Input: waste pipe pressure |
+| Filtration Unit(s) | *(your area name)* | -- | Input: read PressureInput/PressureOutput2/On |
 | LED Display (Small) | *(per area)* | 0 (number) | Active filtration unit count |
-| LED Display (Small) | *(per area)* | 0 (number) | Waste line pressure (kPa) |
+| LED Display (Small) | *(per area)* | 0 (number) | Input pressure (kPa) |
+| LED Display (Small) | *(per area)* | 0 (number) | Waste output pressure (kPa) |
 
-Filtration units (basic + advanced) are read by PrefabHash or by name if labeled. No labeling required for a single waste area -- the script counts all filtration units on the network. For multiple areas, label your filters with the area name.
+No gas sensor required — the script reads `PressureInput` and `PressureOutput2` directly from the filtration units via `lbn`. Supports both `StructureFiltration` and `StructureAdvancedFiltration`.
+
+## What It Monitors
+
+| Metric | What It Means | Why It Matters |
+|--------|--------------|----------------|
+| Filter Count | Active units vs expected | Offline filter = gas not being processed |
+| Input Pressure | Pressure on the intake side | High = gas backing up, filters overwhelmed |
+| Output Pressure | Pressure on waste output side | High = waste tank filling up, nowhere to dump |
 
 ## Thresholds
 
 | Metric | Green | Orange | Red |
 |--------|-------|--------|-----|
 | Missing Filters | 0 | 1 | >1 |
-| Waste Pressure (kPa) | <500 | 500-800 | >800 |
-
-### Alert Logic
-
-- **Filter count**: Compares active `On` count against `ExpFilters` define. Missing units indicate power loss or breakdown.
-- **Waste pressure**: High pressure on the waste pipe means filters can't keep up, risking backup into the base atmosphere.
+| Input Pressure (kPa) | <500 | 500-800 | >800 |
+| Output Pressure (kPa) | <8000 | 8000-9500 | >9500 |
 
 ## Configuration
 
 Edit `waste-monitor-template.ic10`:
 
 ```
-define FilterName HASH("MyWaste")    # Label on filtration units (for multi-area)
-define SensorName HASH("MyWaste")    # Label on waste pipe gas sensor
-define DispFilt HASH("BOD-Filt")     # Filter count display
-define DispWPrs HASH("BOD-WPrs")     # Waste pressure display
-define ExpFilters 2                  # How many filters you expect running
-define PressWarnHi 500               # Pressure warn threshold (kPa)
-define PressCritHi 800               # Pressure crit threshold (kPa)
+# --- EDIT THESE PER AREA ---
+define FilterName HASH("MyWaste")     # Label on your filtration units
+define DispFilt HASH("BOD-Filt")      # Filter count display
+define DispIn HASH("BOD-WIn")         # Input pressure display
+define DispOut HASH("BOD-WOut")       # Waste output pressure display
+# --- END EDIT ---
+define ExpFilters 2                   # Expected active filter count
 ```
 
 ## Setup
 
-1. Clone `waste-monitor-template.ic10` per waste processing area
-2. Edit the `EDIT` section with your area's sensor/display labels
-3. Set `ExpFilters` to match the number of filtration units in the area
-4. Place a gas sensor on the waste pipe and label it to match `SensorName`
-5. (Optional) Label filtration units to match `FilterName` for multi-area setups
-6. Place LED displays near the waste processing equipment
-7. Label IC Housing as `BOD-WasteMon`
+1. Label your filtration units with a consistent name (e.g., `BaseWaste`)
+2. Clone `waste-monitor-template.ic10` for each waste processing area
+3. Edit the `EDIT` section with your area's filter label and display names
+4. Set `ExpFilters` to match your unit count
+5. Place LED displays near the filtration equipment
+6. Label IC Housing as `BOD-WasteMon`
 
-### Example: Main Base Waste Processing
+### Example: Main Base CO2 Processing
 
 ```
-define FilterName HASH("BaseWaste")
-define SensorName HASH("BaseWaste")
+define FilterName HASH("BaseCO2")
 define DispFilt HASH("Base-Filt")
-define DispWPrs HASH("Base-WPrs")
+define DispIn HASH("Base-WIn")
+define DispOut HASH("Base-WOut")
 define ExpFilters 3
 ```
 
-### Example: Mining Outpost (single filter)
+### Example: Mining Outpost
 
 ```
 define FilterName HASH("MineWaste")
-define SensorName HASH("MineWaste")
 define DispFilt HASH("Mine-Filt")
-define DispWPrs HASH("Mine-WPrs")
+define DispIn HASH("Mine-WIn")
+define DispOut HASH("Mine-WOut")
 define ExpFilters 1
 ```
 
+## Filtration Properties Used
+
+| Property | Source | Batch Mode | Purpose |
+|----------|--------|-----------|---------|
+| `On` | Filtration units | Sum | Count active units |
+| `PressureInput` | Filtration units | Maximum | Worst-case intake pressure |
+| `PressureOutput2` | Filtration units | Maximum | Worst-case waste output |
+
+Note: `PressureOutput2` is the **waste/secondary** output. `PressureOutput` is the filtered/primary output.
+
 ## Relationship to Atmosphere Monitor
 
-The atmosphere monitor tracks the **symptoms** of waste gas problems (rising CO2, N2O). The waste monitor tracks the **equipment** doing the cleanup. Together they give you both early warning (equipment failure) and confirmation (atmosphere impact).
+| Monitor | Watches | Alert Timing |
+|---------|---------|-------------|
+| **Waste Monitor** | Filtration equipment health | **Early warning** — catches equipment failure before gas builds up |
+| **Atmo Monitor** | Room atmosphere composition | **Late warning** — catches the symptom after gas has already risen |
+
+Deploy both for defense in depth.
 
 ## Interface Contract
 
