@@ -1,0 +1,78 @@
+# Waste Processing Monitor | IC Housing: BOD-WasteMon
+# Clone per waste processing area. Change the EDIT section below.
+# IC Housing MUST be labeled "BOD-WasteMon"
+#
+# Monitors filtration units for operational status and waste line
+# pressure for backups. Place a gas sensor on the waste pipe.
+#
+# --- EDIT THESE PER AREA ---
+define FilterName HASH("MyWaste")
+define SensorName HASH("MyWaste")
+define DispFilt HASH("BOD-Filt")
+define DispWPrs HASH("BOD-WPrs")
+# --- END EDIT ---
+# Expected filtration unit count (set to your area's count)
+define ExpFilters 2
+# Waste pipe pressure thresholds (kPa)
+define PressWarnHi 500
+define PressCritHi 800
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+alias vFiltOn r0
+alias vFiltExpect r1
+alias vFiltMissing r2
+alias vWPress r3
+alias vAlert r4
+alias vScratch r5
+alias vColor r6
+alias vScratch2 r7
+main:
+yield
+jal ReadWaste
+jal SetColors
+j main
+ReadWaste:
+# Count active filtration units (basic + advanced)
+lb vFiltOn HASH("StructureFiltration") On Sum
+lb vScratch HASH("StructureAdvancedFiltration") On Sum
+add vFiltOn vFiltOn vScratch
+# Also check named filtration units if labelled
+lbn vScratch HASH("StructureFiltration") FilterName On Sum
+lbn vScratch2 HASH("StructureAdvancedFiltration") FilterName On Sum
+add vScratch vScratch vScratch2
+# Use named count if available, fall back to global count
+select vFiltOn vScratch vFiltOn vScratch
+# Compute missing
+move vFiltExpect ExpFilters
+sub vFiltMissing vFiltExpect vFiltOn
+max vFiltMissing vFiltMissing 0
+# Display active filter count
+sbn HASH("StructureConsoleLED5") DispFilt Setting vFiltOn
+# Waste line pressure from gas sensor
+lbn vWPress HASH("StructureGasSensor") SensorName Pressure Average
+div vWPress vWPress 1000
+sbn HASH("StructureConsoleLED5") DispWPrs Setting vWPress
+j ra
+SetColors:
+move vAlert 0
+# Filter status color: missing units = problem
+move vColor ColorGreen
+sgt vScratch vFiltMissing 0
+select vColor vScratch ColorOrange vColor
+sgt vScratch vFiltMissing 1
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") DispFilt Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+# Waste pressure color: high = backup
+move vColor ColorGreen
+sgt vScratch vWPress PressWarnHi
+select vColor vScratch ColorOrange vColor
+sgt vScratch vWPress PressCritHi
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") DispWPrs Color vColor
+sub vScratch vColor ColorGreen
+max vAlert vAlert vScratch
+s db Setting vAlert
+j ra

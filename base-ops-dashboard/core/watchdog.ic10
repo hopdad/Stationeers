@@ -1,0 +1,119 @@
+# Network Health Watchdog | IC Housing: BOD-Watch
+# Monitors BOD system health: counts active IC Housings per module,
+# alerts if any go offline (power loss, broken circuit, removed).
+#
+# CONFIGURATION:
+# Set expected counts per module. Set to 0 for modules you don't use.
+# The watchdog only checks modules with expected count > 0.
+#
+# --- EDIT EXPECTED COUNTS ---
+define ExpAtmo 1
+define ExpPwr 1
+define ExpSolar 1
+define ExpFarm 1
+define ExpLock 1
+define ExpFurn 1
+define ExpStor 0
+define ExpWaste 0
+# --- END EDIT ---
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
+alias vExpect r0
+alias vActual r1
+alias vMissing r2
+alias vTotal r3
+alias vScratch r4
+alias vColor r5
+alias vAlert r6
+main:
+yield
+jal CheckHealth
+jal UpdateDisplay
+j main
+CheckHealth:
+move vMissing 0
+move vTotal 0
+# Atmo monitors
+beqz ExpAtmo skipAtmo
+lbn vActual HASH("StructureCircuitHousing") HASH("BOD-AtmoMon") On Sum
+sub vScratch ExpAtmo vActual
+max vScratch vScratch 0
+add vMissing vMissing vScratch
+add vTotal vTotal ExpAtmo
+skipAtmo:
+# Power monitors
+beqz ExpPwr skipPwr
+lbn vActual HASH("StructureCircuitHousing") HASH("BOD-PwrMon") On Sum
+sub vScratch ExpPwr vActual
+max vScratch vScratch 0
+add vMissing vMissing vScratch
+add vTotal vTotal ExpPwr
+skipPwr:
+# Solar tracker
+beqz ExpSolar skipSolar
+lbn vActual HASH("StructureCircuitHousing") HASH("BOD-SolarMon") On Sum
+sub vScratch ExpSolar vActual
+max vScratch vScratch 0
+add vMissing vMissing vScratch
+add vTotal vTotal ExpSolar
+skipSolar:
+# Farm monitors
+beqz ExpFarm skipFarm
+lbn vActual HASH("StructureCircuitHousing") HASH("BOD-FarmMon") On Sum
+sub vScratch ExpFarm vActual
+max vScratch vScratch 0
+add vMissing vMissing vScratch
+add vTotal vTotal ExpFarm
+skipFarm:
+# Airlock monitors
+beqz ExpLock skipLock
+lbn vActual HASH("StructureCircuitHousing") HASH("BOD-LockMon") On Sum
+sub vScratch ExpLock vActual
+max vScratch vScratch 0
+add vMissing vMissing vScratch
+add vTotal vTotal ExpLock
+skipLock:
+# Furnace monitors
+beqz ExpFurn skipFurn
+lbn vActual HASH("StructureCircuitHousing") HASH("BOD-FurnMon") On Sum
+sub vScratch ExpFurn vActual
+max vScratch vScratch 0
+add vMissing vMissing vScratch
+add vTotal vTotal ExpFurn
+skipFurn:
+# Storage monitors
+beqz ExpStor skipStor
+lbn vActual HASH("StructureCircuitHousing") HASH("BOD-StorMon") On Sum
+sub vScratch ExpStor vActual
+max vScratch vScratch 0
+add vMissing vMissing vScratch
+add vTotal vTotal ExpStor
+skipStor:
+# Waste monitors
+beqz ExpWaste skipWaste
+lbn vActual HASH("StructureCircuitHousing") HASH("BOD-WasteMon") On Sum
+sub vScratch ExpWaste vActual
+max vScratch vScratch 0
+add vMissing vMissing vScratch
+add vTotal vTotal ExpWaste
+skipWaste:
+j ra
+UpdateDisplay:
+# Alert: 0=all present, 1=some missing, 2=many missing (>1)
+move vAlert 0
+sgt vScratch vMissing 0
+select vAlert vScratch 1 vAlert
+sgt vScratch vMissing 1
+select vAlert vScratch 2 vAlert
+# Display: show count of missing modules
+sbn HASH("StructureConsoleLED5") HASH("BOD-Health") Setting vMissing
+# Color
+move vColor ColorGreen
+sgt vScratch vAlert 0
+select vColor vScratch ColorOrange vColor
+sgt vScratch vAlert 1
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-Health") Color vColor
+s db Setting vAlert
+j ra
