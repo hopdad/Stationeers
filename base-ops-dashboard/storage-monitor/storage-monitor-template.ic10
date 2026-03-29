@@ -6,9 +6,16 @@
 #   Change DeviceType to HASH("StructureVendingMachine") etc.
 # Bulk (Silo, Canister):
 #   Change DeviceType to HASH("StructureSilo") etc.
+define StorWarn 25
+define StorCrit 10
+define ColorGreen 2
+define ColorOrange 3
+define ColorRed 4
 alias vCount r0
 alias vMax r1
 alias vFill r2
+alias vScratch r3
+alias vColor r4
 main:
 yield
 # --- EDIT THESE TWO LINES PER AREA ---
@@ -23,4 +30,13 @@ skipDiv:
 move vFill 0
 write:
 s db Setting vFill
+# Local display: show fill % and color at the storage location
+div vScratch vFill 100
+sbn HASH("StructureConsoleLED5") HASH("BOD-Fill") Setting vScratch
+move vColor ColorGreen
+slt vScratch vFill StorWarn
+select vColor vScratch ColorOrange vColor
+slt vScratch vFill StorCrit
+select vColor vScratch ColorRed vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-Fill") Color vColor
 j main
