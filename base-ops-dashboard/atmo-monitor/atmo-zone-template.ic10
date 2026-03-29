@@ -1,6 +1,19 @@
-# Atmosphere Monitor | IC Housing: BOD-AtmoMon
-# Reads BOD-Atmo sensors, drives displays, writes alert to db
-# Tracks: temp, pressure, O2, CO2, pollutant (N2O)
+# Atmosphere Zone Template | IC Housing: BOD-AtmoMon
+# Clone per zone. Change the EDIT section below.
+# IC Housing MUST be labeled "BOD-AtmoMon"
+#
+# Each zone reads its own sensors and drives local displays.
+# BOD Core polls all zones via lbn Maximum for worst-case alert.
+#
+# --- EDIT THESE DEFINES PER ZONE ---
+define SensorName HASH("MyZone")
+define DispTemp HASH("BOD-Temp")
+define DispPress HASH("BOD-Press")
+define DispO2 HASH("BOD-O2")
+define DispCO2 HASH("BOD-CO2")
+define DispPoll HASH("BOD-Poll")
+define DispBarO2 HASH("BOD-Bar-O2")
+# --- END EDIT ---
 define TempWarnLo 18
 define TempWarnHi 26
 define TempCritLo 10
@@ -34,24 +47,23 @@ jal ReadSensors
 jal SetColors
 j main
 ReadSensors:
-lbn vTemp HASH("StructureGasSensor") HASH("BOD-Atmo") Temperature Average
+lbn vTemp HASH("StructureGasSensor") SensorName Temperature Average
 sub vTemp vTemp 273.15
-sbn HASH("StructureConsoleLED5") HASH("BOD-Temp") Setting vTemp
-lbn vPress HASH("StructureGasSensor") HASH("BOD-Atmo") Pressure Average
+sbn HASH("StructureConsoleLED5") DispTemp Setting vTemp
+lbn vPress HASH("StructureGasSensor") SensorName Pressure Average
 div vPress vPress 1000
-sbn HASH("StructureConsoleLED5") HASH("BOD-Press") Setting vPress
-lbn vO2 HASH("StructureGasSensor") HASH("BOD-Atmo") RatioOxygen Average
-sbn HASH("StructureConsoleLED5") HASH("BOD-O2") Setting vO2
-sbn HASH("StructureDiodeSlide") HASH("BOD-Bar-O2") Setting vO2
-# Waste gases
-lbn vCO2 HASH("StructureGasSensor") HASH("BOD-Atmo") RatioCarbonDioxide Average
-sbn HASH("StructureConsoleLED5") HASH("BOD-CO2") Setting vCO2
-lbn vPoll HASH("StructureGasSensor") HASH("BOD-Atmo") RatioNitrousOxide Average
-sbn HASH("StructureConsoleLED5") HASH("BOD-Poll") Setting vPoll
+sbn HASH("StructureConsoleLED5") DispPress Setting vPress
+lbn vO2 HASH("StructureGasSensor") SensorName RatioOxygen Average
+sbn HASH("StructureConsoleLED5") DispO2 Setting vO2
+sbn HASH("StructureDiodeSlide") DispBarO2 Setting vO2
+lbn vCO2 HASH("StructureGasSensor") SensorName RatioCarbonDioxide Average
+sbn HASH("StructureConsoleLED5") DispCO2 Setting vCO2
+lbn vPoll HASH("StructureGasSensor") SensorName RatioNitrousOxide Average
+sbn HASH("StructureConsoleLED5") DispPoll Setting vPoll
 j ra
 SetColors:
 move vAlert 0
-# Temp color
+# Temp
 move vColor ColorGreen
 slt vScratch vTemp TempWarnLo
 select vColor vScratch ColorOrange vColor
@@ -61,10 +73,10 @@ slt vScratch vTemp TempCritLo
 select vColor vScratch ColorRed vColor
 sgt vScratch vTemp TempCritHi
 select vColor vScratch ColorRed vColor
-sbn HASH("StructureConsoleLED5") HASH("BOD-Temp") Color vColor
+sbn HASH("StructureConsoleLED5") DispTemp Color vColor
 sub vScratch vColor ColorGreen
 max vAlert vAlert vScratch
-# Pressure color
+# Pressure
 move vColor ColorGreen
 slt vScratch vPress PressWarnLo
 select vColor vScratch ColorOrange vColor
@@ -74,10 +86,10 @@ slt vScratch vPress PressCritLo
 select vColor vScratch ColorRed vColor
 sgt vScratch vPress PressCritHi
 select vColor vScratch ColorRed vColor
-sbn HASH("StructureConsoleLED5") HASH("BOD-Press") Color vColor
+sbn HASH("StructureConsoleLED5") DispPress Color vColor
 sub vScratch vColor ColorGreen
 max vAlert vAlert vScratch
-# O2 color
+# O2
 move vColor ColorGreen
 slt vScratch vO2 O2WarnLo
 select vColor vScratch ColorOrange vColor
@@ -87,27 +99,26 @@ slt vScratch vO2 O2CritLo
 select vColor vScratch ColorRed vColor
 sgt vScratch vO2 O2CritHi
 select vColor vScratch ColorRed vColor
-sbn HASH("StructureConsoleLED5") HASH("BOD-O2") Color vColor
+sbn HASH("StructureConsoleLED5") DispO2 Color vColor
 sub vScratch vColor ColorGreen
 max vAlert vAlert vScratch
-# CO2 color (high-only threshold)
+# CO2
 move vColor ColorGreen
 sgt vScratch vCO2 CO2WarnHi
 select vColor vScratch ColorOrange vColor
 sgt vScratch vCO2 CO2CritHi
 select vColor vScratch ColorRed vColor
-sbn HASH("StructureConsoleLED5") HASH("BOD-CO2") Color vColor
+sbn HASH("StructureConsoleLED5") DispCO2 Color vColor
 sub vScratch vColor ColorGreen
 max vAlert vAlert vScratch
-# Pollutant (N2O) color (high-only threshold)
+# Pollutant (N2O)
 move vColor ColorGreen
 sgt vScratch vPoll PollWarnHi
 select vColor vScratch ColorOrange vColor
 sgt vScratch vPoll PollCritHi
 select vColor vScratch ColorRed vColor
-sbn HASH("StructureConsoleLED5") HASH("BOD-Poll") Color vColor
+sbn HASH("StructureConsoleLED5") DispPoll Color vColor
 sub vScratch vColor ColorGreen
 max vAlert vAlert vScratch
-# Write master alert to IC Housing
 s db Setting vAlert
 j ra

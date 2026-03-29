@@ -5,13 +5,13 @@ A modular monitoring system for Stationeers. Each sub-module owns a subsystem --
 ## Architecture
 
 ```
-atmo-monitor/ ────┐
+atmo-monitor/ ────┐  (1..N zones)
 power-monitor/ ───┤
 solar-tracker/ ───┤
 farm-monitor/ ────┼──> core/bod-core ──> Master Alert Display
-airlock-monitor/ ─┤
+airlock-monitor/ ─┤  (1..N airlocks)
 furnace-monitor/ ─┤
-storage-monitor/ ─┘  (1..N instances)
+storage-monitor/ ─┘  (1..N areas)
 ```
 
 Each monitor writes an alert level to its IC Housing's `db.Setting`. BOD Core polls all monitors via `lbn` and rolls up the worst-case into a master alert (0=OK, 1=WARN, 2=CRIT).
@@ -23,11 +23,11 @@ Each monitor writes an alert level to its IC Housing's `db.Setting`. BOD Core po
 | `core/` | BOD-Core | bod-core.ic10 | Aggregator: master alert + storage overview |
 | `core/` | BOD-CycleMon | cycle-display.ic10 | Optional: rotating multi-reading display |
 | `core/` | BOD-Alarm | alarm-plugin.ic10 | Optional: audible alarm on critical |
-| `atmo-monitor/` | BOD-AtmoMon | atmo-monitor.ic10 | Atmosphere: temp, pressure, O2, CO2, pollutants |
+| `atmo-monitor/` | BOD-AtmoMon | atmo-zone-template.ic10 | Atmosphere: clone per zone, temp/press/O2/CO2/N2O |
 | `power-monitor/` | BOD-PwrMon | power-monitor.ic10 | Power: battery, generation, solar angle |
 | `solar-tracker/` | BOD-SolarMon | solar-tracker.ic10 | Solar panel tracking + efficiency |
 | `farm-monitor/` | BOD-FarmMon | farm-monitor.ic10 | Farming: growth, occupancy, water pressure |
-| `airlock-monitor/` | BOD-LockMon | airlock-monitor.ic10 | Airlocks: pressure, door states |
+| `airlock-monitor/` | BOD-LockMon | airlock-template.ic10 | Airlocks: clone per airlock, pressure/doors |
 | `furnace-monitor/` | BOD-FurnMon | furnace-monitor.ic10 | Furnaces: temp, pressure |
 | `storage-monitor/` | BOD-StorMon | storage-monitor-template.ic10 | Storage: clone per area, fill % |
 
@@ -48,7 +48,7 @@ Alert levels:
 
 **Exception**: Storage monitors write fill percentage (0-100) instead of alert level. BOD Core evaluates storage thresholds itself.
 
-BOD Core reads each monitor: `lbn HASH("StructureCircuitHousing") HASH("<label>") Setting Average`
+BOD Core reads each monitor via `lbn`. Multi-instance modules (atmo, airlock, storage) use `Maximum` to surface the worst-case. Single-instance modules use `Average`.
 
 ## Color Codes
 

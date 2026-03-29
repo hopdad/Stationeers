@@ -26,10 +26,10 @@ jal EvalMaster
 j main
 PollMonitors:
 # Read alert levels from subsystem monitors
-lbn vAtmoAlert HASH("StructureCircuitHousing") HASH("BOD-AtmoMon") Setting Average
+lbn vAtmoAlert HASH("StructureCircuitHousing") HASH("BOD-AtmoMon") Setting Maximum
 lbn vPwrAlert HASH("StructureCircuitHousing") HASH("BOD-PwrMon") Setting Average
 lbn vFarmAlert HASH("StructureCircuitHousing") HASH("BOD-FarmMon") Setting Average
-lbn vLockAlert HASH("StructureCircuitHousing") HASH("BOD-LockMon") Setting Average
+lbn vLockAlert HASH("StructureCircuitHousing") HASH("BOD-LockMon") Setting Maximum
 lbn vFurnAlert HASH("StructureCircuitHousing") HASH("BOD-FurnMon") Setting Average
 lbn vSolarAlert HASH("StructureCircuitHousing") HASH("BOD-SolarMon") Setting Average
 # Count active storage monitors (On=1 per powered housing)
