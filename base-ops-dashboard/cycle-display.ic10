@@ -1,0 +1,136 @@
+# Cycling Display | IC Housing: BOD-CycleMon
+# Rotates through multiple readings on a single LED display.
+# No changes needed to any monitor script — reads values from existing displays.
+#
+# CONFIGURATION:
+# 1. Uncomment page blocks you want + their matching jump table entry (beq line)
+# 2. Set CYCLE_COUNT to match the number of active pages
+# 3. Set CYCLE_TICKS for rotation speed (10 = ~5 seconds per reading)
+define CYCLE_COUNT 5
+define CYCLE_TICKS 10
+define ModeNum 0
+define ModePct 1
+define ModeWatt 2
+alias vPage r0
+alias vTick r1
+alias vValue r2
+alias vColor r3
+alias vMode r4
+alias vScratch r5
+# ===== MAIN LOOP =====
+main:
+yield
+add vTick vTick 1
+slt vScratch vTick CYCLE_TICKS
+bgtz vScratch showCurrent
+move vTick 0
+add vPage vPage 1
+mod vPage vPage CYCLE_COUNT
+showCurrent:
+beq vPage 0 page0
+beq vPage 1 page1
+beq vPage 2 page2
+beq vPage 3 page3
+beq vPage 4 page4
+# beq vPage 5 page5
+# beq vPage 6 page6
+# beq vPage 7 page7
+# beq vPage 8 page8
+# beq vPage 9 page9
+# beq vPage 10 page10
+# beq vPage 11 page11
+# beq vPage 12 page12
+# beq vPage 13 page13
+# beq vPage 14 page14
+# beq vPage 15 page15
+j page0
+# ===== ACTIVE PAGES (edit CYCLE_COUNT to match) =====
+page0: # Temperature (C)
+lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Temp") Setting Average
+lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Temp") Color Average
+move vMode ModeNum
+j writePage
+page1: # Pressure (kPa)
+lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Press") Setting Average
+lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Press") Color Average
+move vMode ModeNum
+j writePage
+page2: # O2 Ratio
+lbn vValue HASH("StructureConsoleLED5") HASH("BOD-O2") Setting Average
+lbn vColor HASH("StructureConsoleLED5") HASH("BOD-O2") Color Average
+move vMode ModePct
+j writePage
+page3: # Battery Charge
+lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Pwr") Setting Average
+lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Pwr") Color Average
+move vMode ModePct
+j writePage
+page4: # Power Generation (W)
+lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Gen") Setting Average
+lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Gen") Color Average
+move vMode ModeWatt
+j writePage
+# ===== ADDITIONAL PAGES (uncomment and increase CYCLE_COUNT) =====
+# page5: # CO2 Ratio
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-CO2") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-CO2") Color Average
+# move vMode ModePct
+# j writePage
+# page6: # Pollutant (N2O)
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Poll") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Poll") Color Average
+# move vMode ModePct
+# j writePage
+# page7: # Solar Angle
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Sun") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Sun") Color Average
+# move vMode ModeNum
+# j writePage
+# page8: # Storage Fill
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Stor") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Stor") Color Average
+# move vMode ModePct
+# j writePage
+# page9: # Farm Growth
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Grow") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Grow") Color Average
+# move vMode ModePct
+# j writePage
+# page10: # Farm Occupancy
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Occ") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Occ") Color Average
+# move vMode ModePct
+# j writePage
+# page11: # Water Pressure
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-H2O") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-H2O") Color Average
+# move vMode ModeNum
+# j writePage
+# page12: # Airlock Pressure
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-LkPr") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-LkPr") Color Average
+# move vMode ModeNum
+# j writePage
+# page13: # Doors Open
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Door") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Door") Color Average
+# move vMode ModeNum
+# j writePage
+# page14: # Furnace Temp
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-Furn") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-Furn") Color Average
+# move vMode ModeNum
+# j writePage
+# page15: # Furnace Pressure
+# lbn vValue HASH("StructureConsoleLED5") HASH("BOD-FPrs") Setting Average
+# lbn vColor HASH("StructureConsoleLED5") HASH("BOD-FPrs") Color Average
+# move vMode ModeNum
+# j writePage
+# ===== WRITE TO DISPLAY =====
+writePage:
+sbn HASH("StructureConsoleLED5") HASH("BOD-Cycle") Mode vMode
+sbn HASH("StructureConsoleLED5") HASH("BOD-Cycle") Setting vValue
+sbn HASH("StructureConsoleLED5") HASH("BOD-Cycle") Color vColor
+sbn HASH("StructureConsoleLED5") HASH("BOD-Page") Setting vPage
+sbn HASH("StructureConsoleLED5") HASH("BOD-Page") Color vColor
+j main

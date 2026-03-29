@@ -26,6 +26,7 @@ Each monitor reads its sensors, drives its own displays with color-coded thresho
 | `airlock-monitor.ic10` | BOD-LockMon | 63 | Airlocks: pressure, door states |
 | `furnace-monitor.ic10` | BOD-FurnMon | 55 | Furnaces: temp, pressure (Arc + Advanced) |
 | `bod-core.ic10` | BOD-Core | 75 | Aggregator: master alert + storage overview |
+| `cycle-display.ic10` | BOD-CycleMon | 58* | Configurable cycling display (*with 5 active pages) |
 
 ## Hardware Bill of Materials
 
@@ -163,6 +164,22 @@ Night mode: When solar angle < 5°, BOD-Sun and BOD-Gen displays turn blue. Batt
 2. Edit the two `lbn` lines to match your storage device type and label name
 3. Label the IC Housing as `BOD-StorMon` (all monitors share this name)
 4. BOD Core automatically picks up new monitors via batch read
+
+## Cycling Display Setup
+
+The cycling display consolidates multiple readings onto a single LED that rotates on a timer. Useful when wall space is limited.
+
+**Hardware**: 1 IC Housing (`BOD-CycleMon`), 1 LED Display (`BOD-Cycle`), 1 LED Display (`BOD-Page` — page indicator)
+
+**Configuration** (edit `cycle-display.ic10` before loading):
+1. Uncomment the page blocks for readings you want in the rotation
+2. Uncomment the matching `beq` jump table entry for each page
+3. Set `CYCLE_COUNT` to the number of active pages
+4. Set `CYCLE_TICKS` for speed (default 10 = ~5 seconds per reading)
+
+Ships with 5 active pages (Temp, Press, O2, Battery, Gen) and 11 more commented out. All 16 BOD readings are available as page blocks. The display auto-switches Mode (number/percent/watts) per reading.
+
+**Note**: The cycling display reads values back from existing LED displays via `lbn`. If reading `Color` back doesn't work in your game version, hardcode color per page block instead.
 
 ## Adding New Subsystem Monitors
 
