@@ -1,0 +1,28 @@
+# Alarm Plugin | IC Housing: BOD-Alarm
+# Optional — reads BOD Core master alert and activates a speaker.
+# No changes to any other script. Just deploy and wire.
+#
+# CONFIGURATION:
+# - ALARM_LEVEL: 1 = sound on warn+crit, 2 = sound on crit only
+# - ALARM_DELAY: ticks before alarm triggers (avoids brief spikes)
+# - Speaker named "BOD-Siren" on the network
+define ALARM_LEVEL 2
+define ALARM_DELAY 5
+alias vMaster r0
+alias vActive r1
+alias vTimer r2
+alias vScratch r3
+main:
+yield
+# Read master alert from BOD Core IC Housing
+lbn vMaster HASH("StructureCircuitHousing") HASH("BOD-Core") Setting Average
+# Check if alert meets threshold
+sge vScratch vMaster ALARM_LEVEL
+# Count consecutive ticks above threshold
+mul vTimer vTimer vScratch
+add vTimer vTimer vScratch
+# Activate alarm if sustained past delay
+sge vActive vTimer ALARM_DELAY
+# Write to speaker: On = 1 activates, On = 0 silences
+sbn HASH("StructureSpeaker") HASH("BOD-Siren") On vActive
+j main

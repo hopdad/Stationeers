@@ -27,6 +27,7 @@ Each monitor reads its sensors, drives its own displays with color-coded thresho
 | `furnace-monitor.ic10` | BOD-FurnMon | 55 | Furnaces: temp, pressure (Arc + Advanced) |
 | `bod-core.ic10` | BOD-Core | 75 | Aggregator: master alert + storage overview |
 | `cycle-display.ic10` | BOD-CycleMon | 58* | Configurable cycling display (*with 5 active pages) |
+| `alarm-plugin.ic10` | BOD-Alarm | 15 | Optional: audible alarm on critical alerts |
 
 ## Hardware Bill of Materials
 
@@ -187,6 +188,18 @@ Ships with 5 active pages (Temp, Press, O2, Battery, Gen) and 11 more commented 
 2. Label its IC Housing `BOD-NewMon`
 3. In `bod-core.ic10`, add one `lbn` line in `PollMonitors` and one `max` line in `EvalMaster`
 4. BOD Core has 53 free lines for expansion
+
+## Alarm Plugin (Optional)
+
+Audible alarm that sounds when BOD Core's master alert hits critical. Reads `db.Setting` from BOD-Core — no changes to any other script.
+
+**Hardware**: 1 IC Housing (`BOD-Alarm`), 1 Speaker (`BOD-Siren`)
+
+**Configuration** (edit `alarm-plugin.ic10`):
+- `ALARM_LEVEL`: Set to `2` for critical-only (default), or `1` to also sound on warnings
+- `ALARM_DELAY`: Ticks before alarm triggers (default 5 = ~2.5 seconds). Prevents brief spikes from triggering the siren
+
+The alarm auto-silences when the alert drops below the threshold. Uses a consecutive-tick counter — the alert must sustain for `ALARM_DELAY` ticks before the speaker activates.
 
 ## Fail-Silent Behavior
 
